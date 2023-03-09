@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" serverName="zhuzhiwei@10.13.74.126:1022 password" remoteFilesAllowedToDisappearOnAutoupload="false">
+    <serverData>
+      <paths name="zhuzhiwei@10.13.74.119:22 password">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/SubdivNet" local="$PROJECT_DIR$/../SubdivNet" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="zhuzhiwei@10.13.74.126:1022 password">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/neuralSubdiv" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+  </component>
+</project>

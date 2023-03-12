@@ -364,38 +364,38 @@ def computeFlapList(V, F, numSubd=2):
     FList = []
     halfFlapList = []
 
-    for iter in range(numSubd):
+    for iter in range(numSubd): # 每个细分level的都要计算half Flap list
         # compute the subdivided vertex and face lists
-        nV = V.size(0)
-        VV, FF, S = tgp_midPointUp(V, F, 1)
-        rIdx = S._indices()[0, :]
-        cIdx = S._indices()[1, :]
-        val = S._values()
+        nV = V.size(0)  # 老顶点数量
+        VV, FF, S = tgp_midPointUp(V, F, 1)  # 中点插入新顶点上采样，返回的是新顶点list，新的面list，以及记录了上采样后的老新顶点是由哪些老顶点计算得来的稀疏矩阵
+        rIdx = S._indices()[0, :]  # 行索引，老+新顶点
+        cIdx = S._indices()[1, :]  # 列索引，老顶点
+        val = S._values()   # [1,,,,1,0.5,,,0.5]
 
         # only extract new vertices 
         # Note: I order the vertex list as V = [oldV, newV]
         cIdx = cIdx[rIdx >= nV]
         val = val[rIdx >= nV]
         rIdx = rIdx[rIdx >= nV]
-        assert ((val == 0.5).all())
+        assert ((val == 0.5).all())  # 上面把新顶点提取出来了。因为新顶点是两个老顶点的坐标，各0.5的权重插值来的
 
-        rIdx, idx = torch.sort(rIdx)
-        cIdx = cIdx[idx]
-        rIdx = rIdx[::2]  
-        cIdx = cIdx.view(-1, 2)
+        rIdx, idx = torch.sort(rIdx)  # 将新顶点的索引从小到大排列，idx记录了新list中的元素在老list中的下标，排完大概这种效果[12,12,13,13,,]
+        cIdx = cIdx[idx]  # 根据行的顺序变化，同步更新列的变化
+        rIdx = rIdx[::2]   # 得到的是新顶点的索引list，维度是新顶点的个数，应该等于边的数量？rIdx[::2]=rIdx[0::2]，从索引0开始，以2为步长取值得到一个新的列表，下一个值的索引就是0+2=2
+        cIdx = cIdx.view(-1, 2)  # cIdx变为两列，两个元素组成一行，1行记录的索引就是新顶点所在边的2个老顶点，-1表示计算得到行数
         # Note: Vodd = (V[cIdx[:,0],:] + V[cIdx[:,1],:]) / 2.0
 
-        flapIdx = torch.zeros(len(rIdx), 4).long()
+        flapIdx = torch.zeros(len(rIdx), 4).long()  #计算每条边的half flap，有4个顶点
         for kk in range(len(rIdx)):
             vi = cIdx[kk, 0]
-            vj = cIdx[kk, 1]
-            adjFi, _ = tgp.findIdx(F, vi)
-            adjFj, _ = tgp.findIdx(F, vj)
-            adjF = tgp.intersect1d(adjFi, adjFj)
-            # assert (adjF.size(0) == 2)
+            vj = cIdx[kk, 1]  # vi和vj是1条边对应的两个顶点
+            adjFi, _ = tgp.findIdx(F, vi)  # 找顶点i所在的面
+            adjFj, _ = tgp.findIdx(F, vj)  # 找顶点j所在的面
+            adjF = tgp.intersect1d(adjFi, adjFj)  # i,j同时在的面，就是half flap的两个flap面
+            assert (adjF.size(0) == 2)  # 这里报错，就是因为这条边只在一个面上，也就是说初始mesh网格不密闭，有不连通的三角形面片
 
-            f1 = F[adjF[0], :]
-            f2 = F[adjF[1], :]
+            f1 = F[adjF[0], :]  # 面1
+            f2 = F[adjF[1], :]  # 面2
 
             # roll the index so that f1_vi[0] == f2_vi[0] == vi
             f1roll = -tgp.findIdx(f1, vi)[0]
@@ -452,18 +452,18 @@ def tgp_midPointUp(V, F, subdIter=1):
     """
     Vnp = V.data.numpy()
     Fnp = F.data.numpy()
-    VVnp, FFnp, SSnp = midPointUpsampling(Vnp, Fnp, subdIter)
-    VV = torch.from_numpy(VVnp).float()
-    FF = torch.from_numpy(FFnp).long()
+    VVnp, FFnp, SSnp = midPointUpsampling(Vnp, Fnp, subdIter)  # 真正开始中点上采样的函数，SSnp是一个矩阵记录了上采样后的老新顶点是由哪些老顶点计算得来的
+    VV = torch.from_numpy(VVnp).float() #[老，新]顶点list，老顶点数量+边数量
+    FF = torch.from_numpy(FFnp).long()  #新的面list，1个面变4个面
 
     SSnp = SSnp.tocoo()
-    values = SSnp.data
+    values = SSnp.data  # [1,,,,1,0.5,,,0.5]
     indices = np.vstack((SSnp.row, SSnp.col))
     i = torch.LongTensor(indices)
     v = torch.FloatTensor(values)
     shape = SSnp.shape
     SS = torch.sparse.FloatTensor(i, v, torch.Size(shape))
-    return VV, FF, SS
+    return VV, FF, SS  # 和midPointUpsampling返回的数据一样，只是变成了tensor
 
 def random3DRotation():
     """

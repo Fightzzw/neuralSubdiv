@@ -215,7 +215,7 @@ def preprocessTestShapes(meshPathList, nSubd=2):
     for meshIdx in range(nObjs):
         path = meshPathList[meshIdx]
         V, F = tgp.readMESH(path)
-        V = tgp.normalizeUnitCube(V) * 2
+        V = tgp.normalizeUnitCube(V) * 2  # 乘2，是把cube从0.5^3,变成1^3
         FList, hfList = computeFlapList(V, F, nSubd)
 
         meshes_i = [None] * (nSubd + 1)
@@ -252,8 +252,8 @@ class TestMeshes:
             mIdx: mesh index
         """
         input = torch.cat((
-            self.meshes[mIdx][0].V,
-            self.LCs[mIdx]),
+            self.meshes[mIdx][0].V,  # 原始mesh的坐标
+            self.LCs[mIdx]),  # vector of differential coordinates
             dim=1)
         return input  # (nV x Din)
 
@@ -287,15 +287,15 @@ class TestMeshes:
             dof_ij = [None] * nS
             for jj in range(nS):
                 hfIdx = HF[ii][jj]
-                nV = hfIdx[:, 0].max() + 1
+                nV = hfIdx[:, 0].max() + 1  # 顶点的最大索引号+1=顶点数。由于有些边无法计算half flap，所以这里可能点数有问题
 
-                rIdx = hfIdx[:, 0]
-                cIdx = torch.arange(hfIdx.size(0))
-                I = torch.cat([rIdx, cIdx], 0).reshape(2, -1)
-                val = torch.ones(hfIdx.size(0))
-                poolMat = torch.sparse.FloatTensor(I, val, torch.Size([nV, hfIdx.size(0)]))
-
-                rowSum = torch.sparse.sum(poolMat, dim=1).to_dense()
+                rIdx = hfIdx[:, 0]  # 2nE,最大值为nV-1
+                cIdx = torch.arange(hfIdx.size(0))  # 2nE,[0,1,2,...,2nE-1]
+                I = torch.cat([rIdx, cIdx], 0).reshape(2, -1)  # 2 * 2nE
+                val = torch.ones(hfIdx.size(0))  # 2nE
+                poolMat = torch.sparse.FloatTensor(I, val, torch.Size([nV, hfIdx.size(0)]))  # nV * 2nE，记录了每个顶点的出现在第1位的位置
+                # 原理是hfIdx记录了每条边正反两方向的按序排列的顶点索引号，所以每个点总会在边的正或反方向时位于4个顶点的第一位，所以顶点出现在第1位的次数，就代表了顶点相关联的边的数目。
+                rowSum = torch.sparse.sum(poolMat, dim=1).to_dense()  # nV,每个顶点的度，相关联的边的数量也即相邻顶点的数量，度为0的点为孤立点。度为奇数的点为奇点，度为偶数的点为偶点
 
                 poolFlap_ij[jj] = poolMat
                 dof_ij[jj] = rowSum
@@ -315,11 +315,11 @@ class TestMeshes:
         for mIdx in range(self.nM):
             V = self.meshes[mIdx][0].V
             HF = hfList[mIdx][0]
-            poolMat = poolMats[mIdx][0]
+            poolMat = poolMats[mIdx][0]   # nV * 2nE
             dof = dofs[mIdx][0]
-            dV_he = V[HF[:, 0], :] - V[HF[:, 1], :]
-            dV_v = torch.spmm(poolMat, dV_he)
-            dV_v /= dof.unsqueeze(1)
+            dV_he = V[HF[:, 0], :] - V[HF[:, 1], :]  # 2nE * 3
+            dV_v = torch.spmm(poolMat, dV_he)  # nV * 3,矩阵乘法
+            dV_v /= dof.unsqueeze(1)  # nV * 3
             LC[mIdx] = dV_v
         return LC
 
@@ -367,7 +367,7 @@ def computeFlapList(V, F, numSubd=2):
     for iter in range(numSubd): # 每个细分level的都要计算half Flap list
         # compute the subdivided vertex and face lists
         nV = V.size(0)  # 老顶点数量
-        VV, FF, S = tgp_midPointUp(V, F, 1)  # 中点插入新顶点上采样，返回的是新顶点list，新的面list，以及记录了上采样后的老新顶点是由哪些老顶点计算得来的稀疏矩阵
+        VV, FF, S = tgp_midPointUp(V, F, 1)  # 中点插入新顶点上采样，返回的是老+新顶点list，新的面list，以及记录了上采样后的老新顶点是由哪些老顶点计算得来的稀疏矩阵
         rIdx = S._indices()[0, :]  # 行索引，老+新顶点
         cIdx = S._indices()[1, :]  # 列索引，老顶点
         val = S._values()   # [1,,,,1,0.5,,,0.5]
@@ -386,39 +386,45 @@ def computeFlapList(V, F, numSubd=2):
         # Note: Vodd = (V[cIdx[:,0],:] + V[cIdx[:,1],:]) / 2.0
 
         flapIdx = torch.zeros(len(rIdx), 4).long()  #计算每条边的half flap，有4个顶点
+        borndary_edge_index = torch.zeros(len(rIdx))
         for kk in range(len(rIdx)):
             vi = cIdx[kk, 0]
-            vj = cIdx[kk, 1]  # vi和vj是1条边对应的两个顶点
+            vj = cIdx[kk, 1]  # vi和vj是1条边对应的两个顶点的索引
             adjFi, _ = tgp.findIdx(F, vi)  # 找顶点i所在的面
             adjFj, _ = tgp.findIdx(F, vj)  # 找顶点j所在的面
             adjF = tgp.intersect1d(adjFi, adjFj)  # i,j同时在的面，就是half flap的两个flap面
-            assert (adjF.size(0) == 2)  # 这里报错，就是因为这条边只在一个面上，也就是说初始mesh网格不密闭，有不连通的三角形面片
+            # assert (adjF.size(0) == 2)  # 这里报错，就是因为这条边只在一个面上，也就是说初始mesh网格不密闭，有不连通的三角形面片
+            if adjF.size(0) == 2:
+                f1 = F[adjF[0], :]  # 面1
+                f2 = F[adjF[1], :]  # 面2
 
-            f1 = F[adjF[0], :]  # 面1
-            f2 = F[adjF[1], :]  # 面2
+                # roll the index so that f1_vi[0] == f2_vi[0] == vi
+                f1roll = -tgp.findIdx(f1, vi)[0]
+                f2roll = -tgp.findIdx(f2, vi)[0]
+                f1_vi = tgp.roll1d(f1, f1roll)
+                f2_vi = tgp.roll1d(f2, f2roll)
+                assert (f1_vi[0] == vi)
+                assert (f2_vi[0] == vi)
 
-            # roll the index so that f1_vi[0] == f2_vi[0] == vi
-            f1roll = -tgp.findIdx(f1, vi)[0]
-            f2roll = -tgp.findIdx(f2, vi)[0]
-            f1_vi = tgp.roll1d(f1, f1roll)
-            f2_vi = tgp.roll1d(f2, f2roll)
-            assert (f1_vi[0] == vi)
-            assert (f2_vi[0] == vi)
+                # check which one is f = [vi, vj, ?]
+                if f1_vi[1] == vj:
+                    f_first = f1_vi  # f_first = [vi, vj, ?]
+                    f_sec = f2_vi  # f_sec   = [vi, ?, vj]
+                elif f2_vi[1] == vj:
+                    f_first = f2_vi  # f_first = [vi, vj, ?]
+                    f_sec = f1_vi  # f_sec   = [vi, ?, vj]
+                assert (f_first[1] == vj)
+                assert (f_sec[2] == vj)
 
-            # check which one is f = [vi, vj, ?]
-            if f1_vi[1] == vj:
-                f_first = f1_vi  # f_first = [vi, vj, ?]
-                f_sec = f2_vi  # f_sec   = [vi, ?, vj]
-            elif f2_vi[1] == vj:
-                f_first = f2_vi  # f_first = [vi, vj, ?]
-                f_sec = f1_vi  # f_sec   = [vi, ?, vj]
-            assert (f_first[1] == vj)
-            assert (f_sec[2] == vj)
-
-            # assemble flapIdx as
-            # [v_blue, v_red, v_purple, v_yellow]
-            flapIdx[kk, :] = torch.tensor([vi, vj, f_first[2], f_sec[1]])
-
+                # assemble flapIdx as
+                # [v_blue, v_red, v_purple, v_yellow]
+                flapIdx[kk, :] = torch.tensor([vi, vj, f_first[2], f_sec[1]])
+                borndary_edge_index[kk] = 1
+            else:
+                borndary_edge_index[kk] = 0
+                continue
+        # 这里去除 flapIdx = [0,0,0,0]的元素
+        flapIdx = flapIdx[torch.where(borndary_edge_index == 1)]
         # turn flap indices into half flap indices
         # note:
         # flapIdx =
@@ -433,7 +439,7 @@ def computeFlapList(V, F, numSubd=2):
         # [v_blue, v_red, v_purple, v_yellow]
         # [v_blue, v_red, v_purple, v_yellow] (different orientation)
         halfFlapIdx = flapIdx[:, [0, 1, 2, 3, 1, 0, 3, 2]]
-        halfFlapIdx = halfFlapIdx.reshape(-1, 4)
+        halfFlapIdx = halfFlapIdx.reshape(-1, 4)  # 2*nE，即两倍边的数量
 
         FList.append(F)
         halfFlapList.append(halfFlapIdx)

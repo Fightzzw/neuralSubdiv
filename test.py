@@ -20,47 +20,65 @@ def main():
     folder = sys.argv[1]
     with open(folder + 'hyperparameters.json', 'r') as f:
         params = json.load(f)
-    params['numSubd'] = 2 # number of subdivision levels at test time
+    params['numSubd'] = 3 # number of subdivision levels at test time
+    params['output_path'] = '/work/Users/zhuzhiwei/dataset/mesh/free3d-animal/dragon_neural_subdiv_test/'
+    mesh_path_list = []
+    mesh_file_list = []
+    for path in os.listdir(sys.argv[2]):
+        # check if current path is a obj file
+        if os.path.splitext(path)[-1] == ".obj":
+            mesh_file_list.append(path)
+            file_path = os.path.join(sys.argv[2], path)
+            mesh_path_list.append(file_path)
+    print('The following mesh will be subdivided.')
+    print(mesh_file_list)
 
-    print(os.path.basename(sys.argv[2]))
+
+    # initialize network
+    net = SubdNet(params)
+    net = net.to(params['device'])
+    net.load_state_dict(torch.load(folder + '/' + NETPARAMS, map_location=torch.device(params["device"])))
+    net.eval()
 
     # load validation set
-    meshPath = [sys.argv[2]]
+    meshPath = mesh_path_list
     T = TestMeshes(meshPath, params['numSubd'])
     T.computeParameters()
     if not torch.cuda.is_available():
         params['device'] = 'cpu'
     T.toDevice(params["device"])
 
-    # initialize network 
-    net = SubdNet(params)
-    net = net.to(params['device'])
-    net.load_state_dict(torch.load(params['output_path'] + NETPARAMS, map_location=torch.device(params["device"])))
-    net.eval()
+    for mIdx, filename in enumerate(mesh_file_list):
+        filename = filename[:-4]
 
-    # write output shapes (test set)
-    mIdx = 0
-    scale = 1.0 # may need to adjust the scale of the mesh since the network is not scale invariant
-    meshName = os.path.basename(sys.argv[2])[:-4] # meshName: "bunny"
-    x = T.getInputData(mIdx)
-    outputs = net(x, mIdx,T.hfList,T.poolMats,T.dofs) 
-    for ii in range(len(outputs)):
-        x = outputs[ii].cpu() * scale
-        tgp.writeMESH(params['output_path'] + meshName + '_subd' + str(ii) + '.ply',x, T.meshes[mIdx][ii].F.to('cpu'))
+        # write output shapes (test set)
+        # mIdx = 0
+        scale = 1.0 # may need to adjust the scale of the mesh since the network is not scale invariant
 
-    # write rotated output shapes
-    x = T.getInputData(mIdx)
+        x = T.getInputData(mIdx)
+        outputs = net(x, mIdx,T.hfList,T.poolMats,T.dofs)
+        for ii in range(len(outputs)):
+            x = outputs[ii].cpu() * scale
+            if ii == 0:
 
-    dV = torch.rand(1, 3).to(params['device'])
-    R = random3DRotation().to(params['device'])
-    x[:,:3] = x[:,:3].mm(R.t())
-    x[:,3:] = x[:,3:].mm(R.t())
-    x[:,:3] += dV
-    outputs = net(x, mIdx,T.hfList,T.poolMats,T.dofs) 
+                tgp.writeMESH(params['output_path'] + filename + '_subd' + '_ori' + '.obj',x, T.meshes[mIdx][ii].F.to('cpu'))
+            else:
+                tgp.writeMESH(params['output_path'] + filename + '_subd' + str(ii) + '.obj', x,
+                              T.meshes[mIdx][ii].F.to('cpu'))
 
-    for ii in range(len(outputs)):
-        x = outputs[ii].cpu() * scale
-        tgp.writeMESH(params['output_path'] + meshName + '_rot_subd' + str(ii) + '.ply',x, T.meshes[mIdx][ii].F.to('cpu'))
+        # write rotated output shapes
+        x = T.getInputData(mIdx)
+
+        dV = torch.rand(1, 3).to(params['device'])
+        R = random3DRotation().to(params['device'])
+        x[:,:3] = x[:,:3].mm(R.t())
+        x[:,3:] = x[:,3:].mm(R.t())
+        x[:,:3] += dV
+        outputs = net(x, mIdx,T.hfList,T.poolMats,T.dofs)
+
+        for ii in range(len(outputs)):
+            x = outputs[ii].cpu() * scale
+            tgp.writeMESH(params['output_path'] + filename + '_rot_subd' + str(ii) + '.obj',x, T.meshes[mIdx][ii].F.to('cpu'))
 
 
 if __name__ == '__main__':

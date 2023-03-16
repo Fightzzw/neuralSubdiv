@@ -26,7 +26,7 @@ def midPointUpsampling(V,F,numIter=1):
         # compute new vertex positions
         hE = np.concatenate( (F[:,[0,1]], F[:,[1,2]], F[:,[2,0]]), axis=0 )  #把面的三条边都提取出来拼成一个数组。维度应该是[face numbers*3,2]
         hE = np.sort(hE, axis = 1) # 对于每一行，即每一条边，把顶点索引号小的顶点放前面
-        E, hE2E = np.unique(hE, axis=0, return_inverse=True) #去除重复的边，return_inverse为true，返回旧列表hE元素在新列表E中的位置（下标），并以列表形式存储。
+        E, hE2E = np.unique(hE, axis=0, return_inverse=True)  # 去除重复的边，返回的E是将边的第0个顶点索引从小到大排列的边list, return_inverse为true，返回旧列表hE元素在新列表E中的位置（下标），并以列表形式存储。
         nE = E.shape[0] #真正的边的数量
         newV = (V[E[:,0],:] + V[E[:,1],:]) / 2.0 #插入中点的位置，中点的数量和边的数量一样
         V = np.concatenate( (V, newV), axis = 0 ) #新的顶点加入到老的顶点后面，构成新的顶点list V

@@ -62,35 +62,36 @@ class SubdNet(torch.nn.Module):
         F = torch.tensor([[0,1,2],[1,0,3]]) # half flap face list
 
         # 1st frame: edge vector
-        b1 = (V[:,1,:] - V[:,0,:]) / torch.norm(V[:,1,:] - V[:,0,:],dim = 1).unsqueeze(1)
+        b1 = (V[:,1,:] - V[:,0,:]) / torch.norm(V[:,1,:] - V[:,0,:],dim = 1).unsqueeze(1)  # 2nE * 3 对照论文half-flap计算的是12向量的单位向量：12/|12|
 
         # 3rd frame: edge normal (avg of face normals)
-        vec1 = V[:,F[:,1],:] - V[:,F[:,0],:]
-        vec2 = V[:,F[:,2],:] - V[:,F[:,0],:]
-        FN = torch.cross(vec1, vec2) # nF x 2 x 3
+        vec1 = V[:,F[:,1],:] - V[:,F[:,0],:]  # 2nE * 2 * 3, 向量12和21
+        vec2 = V[:,F[:,2],:] - V[:,F[:,0],:]  # 2nE * 2 * 3, 向量13和24
+        FN = torch.cross(vec1, vec2)  # 2nE * 2 * 3, nF x 2 x 3，12和13的叉积，21和24的叉积，方向都是指向论文纸外
         FNnorm = torch.norm(FN, dim = 2)
-        FN = FN / FNnorm.unsqueeze(2)
-        eN = FN[:,0,:] + FN[:,1,:]
-        b3 = eN / torch.norm(eN, dim = 1).unsqueeze(1)
+        FN = FN / FNnorm.unsqueeze(2)  # 2nE * 2 * 3 ，得到是两个面的单位法向量
+        eN = FN[:,0,:] + FN[:,1,:]  # 两个面的法向量相加，代表边的法向量
+        b3 = eN / torch.norm(eN, dim = 1).unsqueeze(1)  # 除以模长，得到边的单位法向量
 
         # 2nd frame: their cross product
-        b2 = torch.cross(b3, b1)
+        b2 = torch.cross(b3, b1)  # 2nE * 3，边向量和边的法向量的叉积
 
-        # concatenage all local frames
-        b1 = b1.unsqueeze(1)
-        b2 = b2.unsqueeze(1)
-        b3 = b3.unsqueeze(1)
-        localFrames = torch.cat((b1,b2,b3), dim = 1)
+        # concatenage all local frames 都是单位向量
+        b1 = b1.unsqueeze(1)  # 2nE * 1 * 3 ，边向量
+        b2 = b2.unsqueeze(1)  # 2nE * 1 * 3 ，边向量和边的法向量的叉积
+        b3 = b3.unsqueeze(1)  # 2nE * 1 * 3 ，边的法向量
+        localFrames = torch.cat((b1,b2,b3), dim = 1)  # 2nE * 3 *3
 
         # normalize features
-        hf_pos = hf[:,:,:3] # half flap vertex position
-        hf_feature = hf[:,:,3:] # half flap features
-        hf_pos = hf_pos - V[:,0,:].unsqueeze(1) # translate
-        hf_pos = torch.bmm(hf_pos, torch.transpose(localFrames,1,2))
+        hf_pos = hf[:,:,:3]  # 2nE * 4 * 3, half flap vertex position
+        hf_feature = hf[:,:,3:] # half flap features, 拉普拉斯坐标
+        hf_pos = hf_pos - V[:,0,:].unsqueeze(1) # translate, 每个half flap的4个顶点坐标都减去顶点1的坐标，得到差分坐标
+        hf_pos = torch.bmm(hf_pos, torch.transpose(localFrames,1,2))  # bmm，三维矩阵乘法，两个矩阵的第一维维度相同，其实是对两个矩阵的每一行执行2维矩阵乘法，transpose，转置维度
+        # hf_pos的每一行是：4个顶点：每一个顶点的差分坐标向量与边向量、边向量和边的法向量的叉积、边的法向量的点积值，就是在这三个方向的投影模长
         if normalizeFeature: # if also normalize the feature using local frames
             assert(hf_feature.size(2) == 3)
             hf_feature = torch.bmm(hf_feature, torch.transpose(localFrames,1,2))
-        hf_normalize = torch.cat((hf_pos, hf_feature), dim = 2)
+        hf_normalize = torch.cat((hf_pos, hf_feature), dim = 2) # 2nE * 4 * 6
         return hf_normalize, localFrames
 
     def v2hf(self, fv, hfIdx):
@@ -102,7 +103,7 @@ class SubdNet(torch.nn.Module):
         fv1 = fv[hfIdx[:,1],:].unsqueeze(1) # 2*nE x 1 x Dout
         fv2 = fv[hfIdx[:,2],:].unsqueeze(1) # 2*nE x 1 x Dout
         fv3 = fv[hfIdx[:,3],:].unsqueeze(1) # 2*nE x 1 x Dout
-        hf = torch.cat((fv0,fv1,fv2,fv3), dim = 1) # 2*nE x 4 x Dout
+        hf = torch.cat((fv0,fv1,fv2,fv3), dim = 1) # 2*nE x 4 x Dout ,
 
         # normalize the half flap features
         hf_normalize, localFrames = self.flapNormalization(hf) 
@@ -115,7 +116,7 @@ class SubdNet(torch.nn.Module):
         V2HF_INITNET re-index the vertex feature (fv) to half flaps features (hf), given half flap index list (hfIdx). This is for the initialization network only
         '''
         # get half flap indices
-        fv0 = fv[hfIdx[:,0],:].unsqueeze(1) # 2*nE x 1 x Dout
+        fv0 = fv[hfIdx[:,0],:].unsqueeze(1) # 2*nE x 1 x Dout, unsqueeze(1)在第2个维度插入维度1，Dout=6
         fv1 = fv[hfIdx[:,1],:].unsqueeze(1) # 2*nE x 1 x Dout
         fv2 = fv[hfIdx[:,2],:].unsqueeze(1) # 2*nE x 1 x Dout
         fv3 = fv[hfIdx[:,3],:].unsqueeze(1) # 2*nE x 1 x Dout
@@ -129,7 +130,7 @@ class SubdNet(torch.nn.Module):
 
     def local2Global(self, hf_local, LFs):
         '''
-        LOCAL2GLOBAL turns position features (the first three elements) described in the local frame of an half-flap to world coordinates  
+        LOCAL2GLOBAL turns position features (the first three elements) described in the local frame of a half-flap to world coordinates
         '''
         hf_local_pos = hf_local[:,:3] # get the vertex position features
         hf_feature = hf_local[:,3:] # get the high-dim features
@@ -168,30 +169,35 @@ class SubdNet(torch.nn.Module):
         return Ve
 
     def forward(self, fv, mIdx, HFs, poolMats, DOFs):
+        print("forward begin")
         outputs = []
 
         # initialization step (figure 17 left)
-        fv_input_pos = fv[:,:3]
+        fv_input_pos = fv[:,:3]  # 原始mesh的坐标
         fhf, LFs = self.v2hf_initNet(fv, HFs[mIdx][0]) 
         fhf = self.net_init(fhf)
         fhf = self.local2Global(fhf, LFs)
-        fv = self.oneRingPool(fhf, poolMats[mIdx][0], DOFs[mIdx][0])
+        fv = self.oneRingPool(fhf, poolMats[mIdx][0], DOFs[mIdx][0])  # nV * 32
         fv[:,:3] += fv_input_pos
 
-        outputs.append(fv[:,:3]) 
+        outputs.append(fv[:,:3])
 
+        print("subdivision starts")
         # subdivision starts
         for ii in range(self.numSubd):
 
+            print("\tvertex step")
             # vertex step (figure 17 middle)
             prevPos = fv[:,:3]
             fhf, LFs = self.v2hf(fv,HFs[mIdx][ii]) # 2*nE x 4*Dout
+            print("\t\tv2hf end")
             fhf = self.net_vertex(fhf)
             fhf = self.local2Global(fhf, LFs)
             fv = self.oneRingPool(fhf, poolMats[mIdx][ii], DOFs[mIdx][ii])
             fv[:,:3] += prevPos
             fv_even = fv
 
+            print("\tedge step")
             # edge step (figure 17 right)
             Ve = self.edgeMidPoint(fv, HFs[mIdx][ii]) # compute mid point
             fhf, LFs = self.v2hf(fv,HFs[mIdx][ii]) # 2*nE x 4*Dout
@@ -203,5 +209,6 @@ class SubdNet(torch.nn.Module):
             # concatenate results
             fv = torch.cat((fv_even, fv_odd), dim = 0) # nV_next x Dout
             outputs.append(fv[:,:3])
+        print("forward end")
 
         return outputs

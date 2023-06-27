@@ -70,7 +70,14 @@ class SubdNet(torch.nn.Module):
         FN = torch.cross(vec1, vec2) # nF x 2 x 3
         FNnorm = torch.norm(FN, dim = 2)
         FN = FN / FNnorm.unsqueeze(2)
-        eN = FN[:,0,:] + FN[:,1,:]
+
+        eN = FN[:, 0, :] + FN[:, 1, :]
+
+        # zzw add
+        # zero_rows = (eN == 0).all(dim=1)
+        # # 将eN中整行元素为0的行用FN[:,0,:]的对应行替换
+        # eN[torch.where(zero_rows)] = FN[:,0,:][torch.where(zero_rows)]
+
         b3 = eN / torch.norm(eN, dim = 1).unsqueeze(1)
 
         # 2nd frame: their cross product
@@ -179,6 +186,47 @@ class SubdNet(torch.nn.Module):
         fv[:,:3] += fv_input_pos
 
         outputs.append(fv[:,:3]) 
+
+        # subdivision starts
+        for ii in range(self.numSubd):
+
+            # vertex step (figure 17 middle)
+            prevPos = fv[:,:3]
+            fhf, LFs = self.v2hf(fv,HFs[mIdx][ii]) # 2*nE x 4*Dout
+            fhf = self.net_vertex(fhf)
+            fhf = self.local2Global(fhf, LFs)
+            fv = self.oneRingPool(fhf, poolMats[mIdx][ii], DOFs[mIdx][ii])
+            fv[:,:3] += prevPos
+            fv_even = fv
+
+            # edge step (figure 17 right)
+            Ve = self.edgeMidPoint(fv, HFs[mIdx][ii]) # compute mid point
+            fhf, LFs = self.v2hf(fv,HFs[mIdx][ii]) # 2*nE x 4*Dout
+            fv_odd = self.net_edge(fhf) # 2*nE x Dout
+            fv_odd = self.local2Global(fv_odd, LFs)
+            fv_odd = self.halfEdgePool(fv_odd) # nE x Dout
+            fv_odd[:,:3] += Ve
+
+            # concatenate results
+            fv = torch.cat((fv_even, fv_odd), dim = 0) # nV_next x Dout
+            outputs.append(fv[:,:3])
+
+        return outputs
+    def test_forward(self, fv, mIdx, HFs, poolMats, DOFs):
+        outputs = []
+        vertex_parents = []
+        # 将fv的元素的索引写入vertex_parents
+
+
+        # initialization step (figure 17 left)
+        fv_input_pos = fv[:,:3]
+        fhf, LFs = self.v2hf_initNet(fv, HFs[mIdx][0])
+        fhf = self.net_init(fhf)
+        fhf = self.local2Global(fhf, LFs)
+        fv = self.oneRingPool(fhf, poolMats[mIdx][0], DOFs[mIdx][0])
+        fv[:,:3] += fv_input_pos
+
+        outputs.append(fv[:,:3])
 
         # subdivision starts
         for ii in range(self.numSubd):

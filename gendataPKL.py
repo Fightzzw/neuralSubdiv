@@ -5,127 +5,170 @@ from multiprocessing import Pool
 from include import *
 
 
+def process_train_mesh_folders_output(idx, folders, o_dir):
+    train_mesh = TrainMeshes(folders)
+    output_path = os.path.join(o_dir, str(idx) + '.pkl')
+    pickle.dump(train_mesh, file=open(output_path, "wb"))
 
-def multiple_mesh():
+
+def process_train_mesh_folders(idx, folders, o_dir):
+    train_mesh = TrainMeshes(folders)
+    return train_mesh
+
+
+def error_callback(e):
+    print('error_callback: ', e)
+
+
+def merge_pkl(i_dir, o_name):
+    # i_dir = './data_PKL/10k_surface_fr0.06_ns3_nm5550_train'
+    # o_name = './data_PKL/10k_surface_fr0.06_ns3_nm5550_train.pkl'
+
+    pkl_list = []
+    for path in os.listdir(i_dir):
+        if path.endswith('.pkl'):
+            pkl_list.append(os.path.join(i_dir, path))
+    print('len of pkl_list: ', len(pkl_list))
+    flag = 1
+    for pkl in pkl_list:
+        split_meshes = pickle.load(open(pkl, 'rb'))
+        if flag:
+            total_meshes = split_meshes
+            flag = 0
+
+        total_meshes.appendMeshList(split_meshes.meshes)
+
+    print('len of total mesh: ', total_meshes.nM)
+    output_path = os.path.join(i_dir, o_name + '_total_%d.pkl' % total_meshes.nM)
+    pickle.dump(total_meshes, file=open(output_path, "wb"))
+
+
+def multiple_gen_data_pkl_and_merge(train_mesh_folders, output_dir):
+    # obj_list = []
+    # root_dir = "/work/Users/zhuzhiwei/dataset/mesh/10k_surface_5550_subdiv_fr0.06/"
+    # train_txt = '/work/Users/zhuzhiwei/dataset/mesh/info_10k_surface/' \
+    #             '10k_surface_5550_valid.txt'
+    # with open(train_txt, 'r') as f:
+    #     for line in f.readlines()[1:]:
+    #         obj_list.append(os.path.join(root_dir, line.strip('\n').split('\t')[0][:-4]))
+    #
+    # train_mesh_folders = obj_list
+    #
+    # output_dir = './data_PKL/10k_surface_5550_subdiv_fr0.06_valid'
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    print('len of train_mesh_folders: ', len(train_mesh_folders))
+    from multiprocessing import Pool
+    from multiprocessing import Process
+    n_processes = os.cpu_count()
+    n_processes = 2
+    print('n_processes: ', n_processes)
+    pool = Pool(processes=n_processes)  # 进程池
+    # split folders into n_processes parts
+    split_folders = np.array_split(train_mesh_folders, n_processes)
+    split_meshes = [None] * n_processes
+
+    # start multi-processes
+    for i in range(n_processes):
+        # pool.apply_async(processFolder, args=(split_folders[i],), callback=lambda x: split_meshes.__setitem__(i, x))
+        pool.apply_async(process_train_mesh_folders,
+                         args=(i, split_folders[i], output_dir,),
+                         callback=lambda x: split_meshes.__setitem__(i, x),
+                         error_callback=error_callback)
+        print('processFolder: ', i)
+
+    pool.close()
+    pool.join()
+
+    # merge results
+    train_mesh = TrainMeshes([])
+    for i in range(n_processes):
+        train_mesh.appendMeshList(split_meshes[i].meshes,
+                                  split_meshes[i].hfList,
+                                  split_meshes[i].poolMats,
+                                  split_meshes[i].dofs,
+                                  split_meshes[i].LCs)
+    output_path = os.path.join(output_dir, 'valid_%d.pkl' % (len(train_mesh.nM)))
+    pickle.dump(train_mesh, file=open(output_path, "wb"))
+
+
+def multiple_gen_data_pkl(train_mesh_folders, output_dir):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    print('len of train_mesh_folders: ', len(train_mesh_folders))
+    # from multiprocessing import Pool
+    # from pathos.multiprocessing import Pool
+    from multiprocessing.pool import ThreadPool as Pool
+    # from multiprocessing import Process
+    n_processes = os.cpu_count()
+    # n_processes = 2
+    print('n_processes: ', n_processes)
+    pool = Pool(processes=n_processes)  # 进程池
+    # split folders into n_processes parts
+    split_folders = np.array_split(train_mesh_folders, n_processes)
+
+    # start multi-processes
+    processes = []
+    for i in range(n_processes):
+        # p = Process(target=process_train_mesh_folders_output, args=(i, split_folders[i], output_dir,))
+        # p.start()
+        # processes.append(p)
+        # pool.apply(process_train_mesh_folders_output, args=(i, split_folders[i], output_dir,))
+        pool.apply_async(process_train_mesh_folders_output,
+                         args=(i, split_folders[i], output_dir,),
+                         error_callback=error_callback)
+        print('processFolder: ', i)
+    # for p in processes:
+    #     p.join()
+
+    pool.close()
+    pool.join()
+
+
+def base_gen_data_pkl():
     train_mesh_folders = []
-    test_mesh_folders = []
-    mesh_dir = '/work/Users/zhuzhiwei/dataset/mesh/free3d-animal/animal-3kk/'
+
+    mesh_dir = '/work/Users/zhuzhiwei/dataset/mesh/10k_sf_train60_subdiv_fr0.06/'
     for path in os.listdir(mesh_dir):
-        if path[-4:] == 'nm50':
-            train_mesh_folders.append(os.path.join(mesh_dir,path))
-        if path[-3:] == 'nm5':
-            test_mesh_folders.append(os.path.join(mesh_dir, path))
-    print('train_mesh_folders: ', train_mesh_folders)
-    print('test_mesh_folders: ', test_mesh_folders)
-    # mesh_folders = ['/work/Users/zhuzhiwei/neuralSubdiv-master/data_meshes/bob_f600_ns3_nm100/']
-    # mesh_folders = ['./data_meshes/bunny/', './data_meshes/rockerArm/', './data_meshes/fertility/']
+        train_mesh_folders.append(os.path.join(mesh_dir, path))
+
+    print('len(train_mesh_folders): ', len(train_mesh_folders))
+
     S1 = TrainMeshes(train_mesh_folders)
+    pickle.dump(S1, file=open("./data_PKL/10k_sf_train60_subdiv_fr0.06.pkl", "wb"))
 
-    pickle.dump(S1, file=open("./data_PKL/animal-3kk_ns3_nm50*6_train.pkl", "wb"))
-    S2 = TrainMeshes(test_mesh_folders)
 
-    pickle.dump(S2, file=open("./data_PKL/animal-3kk_ns3_nm50*6_valid.pkl", "wb"))
+def process_with_txt():
+    obj_list = []
+    root_dir = "/work/Users/zhuzhiwei/dataset/mesh/10k_surface_5550_subdiv_fr0.06/"
+    train_txt = '/work/Users/zhuzhiwei/dataset/mesh/info_10k_surface/' \
+                '10k_surface_5550_valid.txt'
+    with open(train_txt, 'r') as f:
+        for line in f.readlines()[1:]:
+            obj_list.append(os.path.join(root_dir, line.strip('\n').split('\t')[0][:-4]))
 
-def multiple_mesh1():
-    train_mesh_folders = []
-
-    mesh_dir = '/work/Users/zhuzhiwei/dataset/mesh/free3d-animal/animal-3kk/'
-    for path in os.listdir(mesh_dir):
-        if path[-4:] == 'nm50':
-            train_mesh_folders.append(os.path.join(mesh_dir,path))
+    train_mesh_folders = obj_list
 
     print('train_mesh_folders: ', train_mesh_folders)
 
-    # mesh_folders = ['/work/Users/zhuzhiwei/neuralSubdiv-master/data_meshes/bob_f600_ns3_nm100/']
-    # mesh_folders = ['./data_meshes/bunny/', './data_meshes/rockerArm/', './data_meshes/fertility/']
-    S1 = TrainMeshes(train_mesh_folders)
+    S2 = TrainMeshes(train_mesh_folders)
 
-    pickle.dump(S1, file=open("./data_PKL/animal-3kk_ns3_nm50*6_norm_train.pkl", "wb"))
-
-
-def multiple_mesh2():
-
-    test_mesh_folders = []
-    mesh_dir = '/work/Users/zhuzhiwei/dataset/mesh/free3d-animal/animal-3kk/'
-    for path in os.listdir(mesh_dir):
-
-        if path[-3:] == 'nm5':
-            test_mesh_folders.append(os.path.join(mesh_dir, path))
-
-    print('test_mesh_folders: ', test_mesh_folders)
-    # mesh_folders = ['/work/Users/zhuzhiwei/neuralSubdiv-master/data_meshes/bob_f600_ns3_nm100/']
-    # mesh_folders = ['./data_meshes/bunny/', './data_meshes/rockerArm/', './data_meshes/fertility/']
-
-    S2 = TrainMeshes(test_mesh_folders)
-
-    pickle.dump(S2, file=open("./data_PKL/animal-3kk_ns3_nm50*6_norm_valid.pkl", "wb"))
-
-
-
-def main():
-
-    train_mesh_folders =['/work/Users/zhuzhiwei/neuralSubdiv-master/data_meshes/bob_f600_ns3_nm100/']
-    test_mesh_folders = ['/work/Users/zhuzhiwei/neuralSubdiv-master/data_meshes/bob_f600_ns3_nm20/']
-
-    print('train_mesh_folders: ', train_mesh_folders)
-    print('test_mesh_folders: ', test_mesh_folders)
-    # mesh_folders = ['/work/Users/zhuzhiwei/neuralSubdiv-master/data_meshes/bob_f600_ns3_nm100/']
-    # mesh_folders = ['./data_meshes/bunny/', './data_meshes/rockerArm/', './data_meshes/fertility/']
-    S1 = TrainMeshes(train_mesh_folders)
-    pickle.dump(S1, file=open("./data_PKL/bob_f600_ns3_nm100_train.pkl", "wb"))
-    S2 = TrainMeshes(test_mesh_folders)
-    pickle.dump(S2, file=open("./data_PKL/bob_f600_ns3_nm100_valid.pkl", "wb"))
-
-
-def main1():
-    train_mesh_folders = ['/work/Users/zhuzhiwei/neuralSubdiv-master/data_meshes/bob_f600_ns3_nm100/']
-
-    print('train_mesh_folders: ', train_mesh_folders)
-
-    # mesh_folders = ['/work/Users/zhuzhiwei/neuralSubdiv-master/data_meshes/bob_f600_ns3_nm100/']
-    # mesh_folders = ['./data_meshes/bunny/', './data_meshes/rockerArm/', './data_meshes/fertility/']
-    S1 = TrainMeshes(train_mesh_folders)
-    pickle.dump(S1, file=open("./data_PKL/bob_f600_ns3_nm100_train.pkl", "wb"))
-
-
-def main2():
-    test_mesh_folders = ['/work/Users/zhuzhiwei/neuralSubdiv-master/data_meshes/bob_f600_ns3_nm20/']
-    print('test_mesh_folders: ', test_mesh_folders)
-    # mesh_folders = ['/work/Users/zhuzhiwei/neuralSubdiv-master/data_meshes/bob_f600_ns3_nm100/']
-    # mesh_folders = ['./data_meshes/bunny/', './data_meshes/rockerArm/', './data_meshes/fertility/']
-
-    S2 = TrainMeshes(test_mesh_folders)
-    pickle.dump(S2, file=open("./data_PKL/bob_f600_ns3_nm100_valid.pkl", "wb"))
-
-
+    pickle.dump(S2, file=open("./data_PKL/10k_surface_fr0.06_ns3_nm5550_valid.pkl", "wb"))
 
 
 if __name__ == '__main__':
-    # main()
-    # multiple_mesh()
-    # train_mesh_folders = ['/work/Users/zhuzhiwei/neuralSubdiv-master/data_meshes/bob_f600_ns3_nm100']
-    # # mesh_dir = '/work/Users/zhuzhiwei/dataset/mesh/free3d-animal/animal-3kk/'
-    # # for path in os.listdir(mesh_dir):
-    # #     if path[-4:] == 'nm50':
-    # #         train_mesh_folders.append(os.path.join(mesh_dir, path))
-    # for model in train_mesh_folders:
-    #     for sub in os.listdir(model):
-    #         sub_dir = os.path.join(model, sub)
-    #         print('rm ' + sub_dir + '/000.obj')
-    #         os.system('rm ' + sub_dir + '/000.obj')
-
-
-    n_processes = os.cpu_count()
-    print('n_processes: ', n_processes)
-    n_processes = 2  # 进程数
-    pool = Pool(processes=n_processes)  # 进程池
-
-    # pool.apply_async(main1)  # 启动多进程
-    # pool.apply_async(main2)  # 启动多进程
-    pool.apply_async(multiple_mesh1)
-
-    pool.apply_async(multiple_mesh2)
-
-    pool.close()  # 使进程池不能添加新任务
-    pool.join()  # 等待进程结束
-
+    # main2()
+    # obj_list = []
+    # root_dir = "/work/Users/zhuzhiwei/dataset/mesh/10k_surface_5550_subdiv_fr0.06/"
+    # train_txt = '/work/Users/zhuzhiwei/dataset/mesh/info_10k_surface/' \
+    #             '10k_surface_5550_train.txt'
+    # with open(train_txt, 'r') as f:
+    #     for line in f.readlines()[1:]:
+    #         obj_list.append(os.path.join(root_dir, line.strip('\n').split('\t')[0][:-4]))
+    #
+    # train_mesh_folders = obj_list
+    # output_dir = './data_PKL/10k_surface_fr0.06_ns3_nm5550_train'
+    # multiple_gen_data_pkl(train_mesh_folders, output_dir)
+    merge_pkl('./data_PKL/10k_surface_fr0.06_ns3_nm5550_test', 'test')

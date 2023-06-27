@@ -4,7 +4,8 @@ from __future__ import print_function
 
 from include import *
 from models import *
-NETPARAMS = 'netparams.dat'
+NETPARAMS = 'netparams_1400.dat'
+import argparse
 
 # run the file as "python test.py ./path/to/folder/ ./path/to/testMesh.obj"
 # WARNING
@@ -22,7 +23,7 @@ def main():
         params = json.load(f)
     params['numSubd'] = 2 # number of subdivision levels at test time
 
-    print(os.path.basename(sys.argv[2]))
+    print(sys.argv[2])
 
     # load validation set
     meshPath = [sys.argv[2]]
@@ -35,7 +36,7 @@ def main():
     # initialize network 
     net = SubdNet(params)
     net = net.to(params['device'])
-    net.load_state_dict(torch.load(params['output_path'] + NETPARAMS, map_location=torch.device(params["device"])))
+    net.load_state_dict(torch.load(folder + NETPARAMS, map_location=torch.device(params["device"])))
     net.eval()
 
     # write output shapes (test set)
@@ -46,7 +47,8 @@ def main():
     outputs = net(x, mIdx,T.hfList,T.poolMats,T.dofs) 
     for ii in range(len(outputs)):
         x = outputs[ii].cpu() * scale[1] + scale[0].unsqueeze(0)
-        tgp.writeOBJ(params['output_path'] + meshName + '_subd' + str(ii) + '.obj',x, T.meshes[mIdx][ii].F.to('cpu'))
+        # tgp.writeOBJ(params['output_path'] + meshName + '_subd' + str(ii) + '.obj',x, T.meshes[mIdx][ii].F.to('cpu'))
+        tgp.writeOBJ(sys.argv[2][:-4] + '_subd' + str(ii) + '.obj', x, T.meshes[mIdx][ii].F.to('cpu'))
 
     # write rotated output shapes
     # x = T.getInputData(mIdx)
@@ -63,5 +65,7 @@ def main():
     #     tgp.writeOBJ(params['output_path'] + meshName + '_rot_subd' + str(ii) + '.obj',x, T.meshes[mIdx][ii].F.to('cpu'))
 
 
+
 if __name__ == '__main__':
     main()
+    # bat_test()

@@ -1,1 +1,0 @@
-{"train_pkl": "./data_PKL/Horse_f600_ns2_nm200_train.pkl", "valid_pkl": "./data_PKL/Horse_f600_ns2_nm200_valid.pkl", "output_path": "./jobs/net_Horse_f600_ns2_nm200/", "epochs": 700, "lr": 0.002, "device": "cuda", "Din": 6, "Dout": 32, "h_initNet": [32, 32], "h_edgeNet": [32, 32], "h_vertexNet": [32, 32], "numSubd": 2}

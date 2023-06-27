@@ -1,1 +1,0 @@
-{"train_pkl": "./data_PKL/Camel_voxelized12_f2987_ns3_nm1_1.pkl", "valid_pkl": "./data_PKL/Camel_voxelized12_f2987_ns3_nm1_1.pkl", "output_path": "./jobs/Camel_voxelized12_f2987_ns3_nm1_1/", "epochs": 1000, "lr": 0.002, "device": "cuda", "Din": 6, "Dout": 32, "h_initNet": [32, 32], "h_edgeNet": [32, 32], "h_vertexNet": [32, 32], "numSubd": 3}

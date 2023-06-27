@@ -54,6 +54,12 @@
           <mappings>
             <mapping deploy="/neuralSubdiv-master" local="$PROJECT_DIR$" web="/" />
           </mappings>
+          <excludedPaths>
+            <excludedPath path="/neuralSubdiv-master/data_meshes" />
+            <excludedPath path="/neuralSubdiv-master/data_PKL" />
+            <excludedPath path="/neuralSubdiv-master/jobs" />
+            <excludedPath path="/neuralSubdiv-master/test" />
+          </excludedPaths>
         </serverdata>
       </paths>
       <paths name="zhuzhiwei@10.13.74.126:1022 key (2)">

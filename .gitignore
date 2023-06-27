@@ -127,6 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-/data_meshes/
+data_meshes/
 /data_PKL/
-/jobs/
+!/data_PKL/*.txt
+jobs/

@@ -5,8 +5,34 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="1f4b90ad-8630-437c-bc7a-9db102061ef4" name="更改" comment="使gendataPKL并行化">
-      <change beforePath="$PROJECT_DIR$/.idea/deployment.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/deployment.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/batch_train_hfNorm_oddV.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/dataset.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/models_b_hfNorm_oddV.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/pythongptoolbox/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/calMinSphere.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/data_handle.py" beforeDir="false" afterPath="$PROJECT_DIR$/utlis/data_handle.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/gendataPKL.py" beforeDir="false" afterPath="$PROJECT_DIR$/gendataPKL.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/include.py" beforeDir="false" afterPath="$PROJECT_DIR$/include.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/include_old.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mesh_subdivision.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/metrics.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/min_sphere.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/models.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/models_hfNorm_oddV.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/models_hf_norm.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/models_oddvertices.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/models_rnn.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/my_meshFunction.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pythongptoolbox/midPointUpsampling.py" beforeDir="false" afterPath="$PROJECT_DIR$/pythongptoolbox/midPointUpsampling.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/read_log.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/train.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/train_hfNorm_oddV.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_hfNorm_oddV.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/train_hf_norm.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/train_oddvertices.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/writeHyperparam.py" beforeDir="false" afterPath="$PROJECT_DIR$/writeHyperparam.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -60,8 +86,13 @@
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
-  <component name="RunManager" selected="Python.writeHyperparam">
-    <configuration name="calMinSphere" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="D:\PythonProjFile\neuralSubdiv-master\utlis" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Python.batch_train_hfNorm_oddV">
+    <configuration name="batch_train_hfNorm_oddV" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="neuralSubdiv-master" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -74,7 +105,29 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/calMinSphere.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/batch_train_hfNorm_oddV.py" />
+      <option name="PARAMETERS" value="-j jobs/10k_sf_train60_subdiv_fn1000_valid500/ -o batch_test -g 0" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="metrics" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="neuralSubdiv-master" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/metrics.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -83,7 +136,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="gendataPKL" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="train" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="neuralSubdiv-master" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -96,30 +149,8 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/gendataPKL.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="read_log" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="neuralSubdiv-master" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/read_log.py" />
-      <option name="PARAMETERS" value="" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/train.py" />
+      <option name="PARAMETERS" value="-j jobs/10k_surface_fr0.06_ns3_nm5550_test+valid/ -o anchor_6h128_1 -g 2" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -141,7 +172,29 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/train_hfNorm_oddV.py" />
-      <option name="PARAMETERS" value="-j jobs/Lion_f500_ns3_nm10/ -o hfNorm_oddV -g 1" />
+      <option name="PARAMETERS" value="-j jobs/10k_surface_fr0.06_ns3_nm5550_test+valid/ -o hfNorm_oddV_6h128 -g 1" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="train_hfNorm_oddV" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="neuralSubdiv-master" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/train" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/train/train_hfNorm_oddV.py" />
+      <option name="PARAMETERS" value="-j jobs/10k_surface_fr0.06_ns3_nm5550_test+valid/ -o hfNorm_oddV_6h128 -g 1" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -172,19 +225,19 @@
       <method v="2" />
     </configuration>
     <list>
-      <item itemvalue="Python.gendataPKL" />
+      <item itemvalue="Python.batch_train_hfNorm_oddV" />
+      <item itemvalue="Python.train" />
       <item itemvalue="Python.train_hfNorm_oddV" />
-      <item itemvalue="Python.read_log" />
+      <item itemvalue="Python.metrics" />
       <item itemvalue="Python.writeHyperparam" />
-      <item itemvalue="Python.calMinSphere" />
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.writeHyperparam" />
-        <item itemvalue="Python.gendataPKL" />
+        <item itemvalue="Python.batch_train_hfNorm_oddV" />
+        <item itemvalue="Python.train" />
         <item itemvalue="Python.train_hfNorm_oddV" />
-        <item itemvalue="Python.read_log" />
-        <item itemvalue="Python.calMinSphere" />
+        <item itemvalue="Python.train_hfNorm_oddV" />
+        <item itemvalue="Python.metrics" />
       </list>
     </recent_temporary>
   </component>
@@ -199,7 +252,7 @@
       <workItem from="1685589106183" duration="89000" />
       <workItem from="1685589211798" duration="182701000" />
       <workItem from="1687668128524" duration="6483000" />
-      <workItem from="1687743442256" duration="37388000" />
+      <workItem from="1687743442256" duration="79025000" />
     </task>
     <servers />
   </component>
@@ -225,59 +278,49 @@
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/models.py</url>
-          <line>194</line>
-          <option name="timeStamp" value="6" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/models_hf_norm.py</url>
-          <line>286</line>
-          <option name="timeStamp" value="12" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/train_oddvertices.py</url>
-          <line>113</line>
-          <option name="timeStamp" value="14" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/models_hf_norm.py</url>
-          <line>239</line>
-          <option name="timeStamp" value="17" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/calMinSphere.py</url>
-          <line>359</line>
-          <option name="timeStamp" value="21" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/train_hfNorm_oddV.py</url>
-          <line>124</line>
-          <option name="timeStamp" value="24" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/include.py</url>
-          <line>608</line>
+          <line>659</line>
           <option name="timeStamp" value="28" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/include.py</url>
-          <line>712</line>
+          <line>763</line>
           <option name="timeStamp" value="30" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/train/train_hfNorm_oddV.py</url>
+          <line>237</line>
+          <option name="timeStamp" value="34" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="python-line">
+          <condition expression="mIdx==156" language="Python" />
+          <url>file://$PROJECT_DIR$/train.py</url>
+          <line>111</line>
+          <option name="timeStamp" value="44" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/batch_train_hfNorm_oddV.py</url>
+          <line>48</line>
+          <option name="timeStamp" value="45" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/neuralSubdiv_master$train_hfNorm_oddV.coverage" NAME="train_hfNorm_oddV 覆盖结果" MODIFIED="1687677140811" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/neuralSubdiv_master$gendataPKL.coverage" NAME="gendataPKL 覆盖结果" MODIFIED="1687860467367" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/neuralSubdiv_master$calMinSphere.coverage" NAME="calMinSphere 覆盖结果" MODIFIED="1686743515308" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/neuralSubdiv_master$train.coverage" NAME="train 覆盖结果" MODIFIED="1685608759379" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/neuralSubdiv_master$gps.coverage" NAME="gps 覆盖结果" MODIFIED="1687878621305" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/neuralSubdiv_master$train.coverage" NAME="train 覆盖结果" MODIFIED="1688007343026" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/neuralSubdiv_master$train_hf_norm.coverage" NAME="train_hf_norm 覆盖结果" MODIFIED="1686634984604" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/neuralSubdiv_master$gen_trian_dataset.coverage" NAME="gen_trian_dataset 覆盖结果" MODIFIED="1686065253586" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/neuralSubdiv_master$train_oddvertices.coverage" NAME="train_oddvertices 覆盖结果" MODIFIED="1686367439118" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/neuralSubdiv_master$read_log.coverage" NAME="read_log 覆盖结果" MODIFIED="1686815941934" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/neuralSubdiv_master$metrics.coverage" NAME="metrics 覆盖结果" MODIFIED="1687878658776" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/neuralSubdiv_master$batch_train_hfNorm_oddV.coverage" NAME="batch_train_hfNorm_oddV 覆盖结果" MODIFIED="1688090038941" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/neuralSubdiv_master$writeHyperparam.coverage" NAME="writeHyperparam 覆盖结果" MODIFIED="1687860756570" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/neuralSubdiv_master$my_meshFunction.coverage" NAME="my_meshFunction 覆盖结果" MODIFIED="1686062472204" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/neuralSubdiv_master$train__1_.coverage" NAME="train 覆盖结果" MODIFIED="1686282036559" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/hf_norm" />
+    <SUITE FILE_PATH="coverage/neuralSubdiv_master$train_hfNorm_oddV__1_.coverage" NAME="train_hfNorm_oddV 覆盖结果" MODIFIED="1688002953293" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/neuralSubdiv_master$gendataPKL.coverage" NAME="gendataPKL 覆盖结果" MODIFIED="1687860467367" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/neuralSubdiv_master$read_log.coverage" NAME="read_log 覆盖结果" MODIFIED="1686815941934" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/neuralSubdiv_master$my_meshFunction.coverage" NAME="my_meshFunction 覆盖结果" MODIFIED="1686062472204" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

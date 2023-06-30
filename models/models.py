@@ -1,3 +1,5 @@
+import sys
+sys.path.append('../')
 from include import *
 
 class MLP(torch.nn.Module):
@@ -212,11 +214,12 @@ class SubdNet(torch.nn.Module):
             outputs.append(fv[:,:3])
 
         return outputs
+
+
     def test_forward(self, fv, mIdx, HFs, poolMats, DOFs):
         outputs = []
         vertex_parents = []
         # 将fv的元素的索引写入vertex_parents
-
 
         # initialization step (figure 17 left)
         fv_input_pos = fv[:,:3]

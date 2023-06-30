@@ -1,6 +1,6 @@
 import numpy as np
 import scipy
-from adjacencyMat import adjacencyMat
+#from adjacencyMat import adjacencyMat
 
 def midPointUpsampling(V,F,numIter=1):
     '''

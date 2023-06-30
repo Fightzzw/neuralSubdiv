@@ -9,7 +9,7 @@ from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.tensorboard import SummaryWriter
 
 from include import *
-from models_oddvertices import *
+from models.models_oddV import *
 
 
 def main(args):

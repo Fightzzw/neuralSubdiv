@@ -129,5 +129,4 @@ dmypy.json
 .pyre/
 data_meshes/
 /data_PKL/
-!/data_PKL/*.txt
 jobs/

@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-from multiprocessing import Pool
+from multiprocessing.pool import ThreadPool as Pool
 from include import *
 
 
@@ -59,10 +59,9 @@ def multiple_gen_data_pkl_and_merge(train_mesh_folders, output_dir):
         os.makedirs(output_dir)
 
     print('len of train_mesh_folders: ', len(train_mesh_folders))
-    from multiprocessing import Pool
-    from multiprocessing import Process
+
     n_processes = os.cpu_count()
-    n_processes = 2
+
     print('n_processes: ', n_processes)
     pool = Pool(processes=n_processes)  # 进程池
     # split folders into n_processes parts
@@ -93,17 +92,12 @@ def multiple_gen_data_pkl_and_merge(train_mesh_folders, output_dir):
     pickle.dump(train_mesh, file=open(output_path, "wb"))
 
 
-def multiple_gen_data_pkl(train_mesh_folders, output_dir):
+def multiple_gen_data_pkl(train_mesh_folders, output_dir, n_processes=1):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     print('len of train_mesh_folders: ', len(train_mesh_folders))
-    # from multiprocessing import Pool
-    # from pathos.multiprocessing import Pool
-    from multiprocessing.pool import ThreadPool as Pool
-    # from multiprocessing import Process
-    n_processes = os.cpu_count()
-    # n_processes = 2
+    # n_processes = os.cpu_count()
     print('n_processes: ', n_processes)
     pool = Pool(processes=n_processes)  # 进程池
     # split folders into n_processes parts
@@ -160,15 +154,15 @@ def process_with_txt():
 
 if __name__ == '__main__':
     # main2()
-    # obj_list = []
-    # root_dir = "/work/Users/zhuzhiwei/dataset/mesh/10k_surface_5550_subdiv_fr0.06/"
-    # train_txt = '/work/Users/zhuzhiwei/dataset/mesh/info_10k_surface/' \
-    #             '10k_surface_5550_train.txt'
-    # with open(train_txt, 'r') as f:
-    #     for line in f.readlines()[1:]:
-    #         obj_list.append(os.path.join(root_dir, line.strip('\n').split('\t')[0][:-4]))
-    #
-    # train_mesh_folders = obj_list
-    # output_dir = './data_PKL/10k_surface_fr0.06_ns3_nm5550_train'
-    # multiple_gen_data_pkl(train_mesh_folders, output_dir)
-    merge_pkl('./data_PKL/10k_surface_fr0.06_ns3_nm5550_test', 'test')
+    obj_list = []
+    root_dir = "/work/Users/zhuzhiwei/dataset/mesh/10k_surface_5550_subdiv_fr0.06/"
+    train_txt = '/work/Users/zhuzhiwei/dataset/mesh/info_10k_surface/' \
+                '10k_surface_5550_train.txt'
+    with open(train_txt, 'r') as f:
+        for line in f.readlines()[1:]:
+            obj_list.append(os.path.join(root_dir, line.strip('\n').split('\t')[0][:-4]))
+
+    train_mesh_folders = obj_list
+    output_dir = './data_PKL/10k_surface_fr0.06_ns3_nm5550_train'
+    multiple_gen_data_pkl(train_mesh_folders, output_dir, 256)
+    # merge_pkl('./data_PKL/10k_surface_fr0.06_ns3_nm5550_train', 'train')

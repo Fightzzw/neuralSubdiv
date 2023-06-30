@@ -8,6 +8,7 @@ def main():
         "valid_pkl": "./data_PKL/10k_surface_fr0.06_ns3_nm5550_valid/valid_total_563.pkl",
         "output_path": './jobs/10k_surface_fr0.06_ns3_nm5550_test+valid/',
         "epochs": 3000,
+        "batch_size": 16,
         "lr": 2e-3, 
         "device": 'cuda',
         "Din": 6,

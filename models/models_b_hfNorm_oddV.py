@@ -1,9 +1,10 @@
-import torch
+import sys
 
+sys.path.append('../')
 from include import *
 import trimesh
 import numpy as np
-import random
+
 
 class MLP(torch.nn.Module):
     # This is the MLP template for the Initialization, Vertex, Edge networks (see Table 2 in the appendix)
@@ -60,6 +61,7 @@ class SubdNet(torch.nn.Module):
         """
         Get the minimum radius of a circumscribed sphere that encloses all the points
         """
+
         def minimum_enclosing_sphere_3points(triangle):
             # Compute the circumcenter of the triangle
             a, b, c = triangle
@@ -83,6 +85,7 @@ class SubdNet(torch.nn.Module):
                 center = np.mean(triangle, axis=0)
                 radius = np.max(np.linalg.norm(triangle - center, axis=1))
                 return center, radius
+
         def _min_sphere(points, center, radius):
             if len(points) == 0 or len(center) == 3:
                 if len(center) == 3:
@@ -334,40 +337,40 @@ class SubdNet(torch.nn.Module):
         LC = dV_v
         return LC
 
-    def forward(self, fv, mIdx, HFs, poolMats, DOFs):
+    def forward(self, fv,  HF, poolMat, DOF):
         outputs = []
 
         # initialization step (figure 17 left)
         # subd0不用插入边顶点，先单独处理一波
         fv_input_pos = fv[:, :3]
-        fhf, LFs, normalize_length = self.v2hf_initNet(fv, HFs[mIdx][0])
+        fhf, LFs, normalize_length = self.v2hf_initNet(fv, HF[0])
         fhf = self.net_init(fhf)  # mlp,低维到高维
         fhf = self.local2Global(fhf, LFs, normalize_length)
-        fv = self.oneRingPool(fhf, poolMats[mIdx][0], DOFs[mIdx][0])
+        fv = self.oneRingPool(fhf, poolMat[0], DOF[0])
         fv[:, :3] += fv_input_pos
 
         outputs.append(fv[:, :3])
 
         # subdivision starts
-        for ii in range(self.numSubd-1):
+        for ii in range(self.numSubd):
             # 1, compute the mid-point of each edge
             # 2, vertex step (figure 17 middle)
-            Ve = self.edgeMidPoint(fv, HFs[mIdx][ii])  # compute edge mid point
+            Ve = self.edgeMidPoint(fv, HF[ii])  # compute edge mid point
             fv_input_pos = torch.cat((fv[:, :3], Ve), dim=0)  # nV_next x 3
             # calculate laplace coordinate
             LC = self.getLaplaceCoordinate(fv_input_pos,
-                                           HFs[mIdx][ii+1],
-                                           poolMats[mIdx][ii+1],
-                                           DOFs[mIdx][ii+1])
+                                           HF[ii + 1],
+                                           poolMat[ii + 1],
+                                           DOF[ii + 1])
 
             fv = torch.cat((fv_input_pos, LC), dim=1)  # nV_next x Din
 
             # initialization step, low dimensional features to high dimensional features
             fv_input_pos = fv[:, :3]
-            fhf, LFs, normalize_length = self.v2hf_initNet(fv, HFs[mIdx][ii + 1])  #
+            fhf, LFs, normalize_length = self.v2hf_initNet(fv, HF[ii + 1])  #
             fhf = self.net_init(fhf)  # mlp,低维到高维
             fhf = self.local2Global(fhf, LFs, normalize_length)
-            fv = self.oneRingPool(fhf, poolMats[mIdx][ii+1], DOFs[mIdx][ii+1])
+            fv = self.oneRingPool(fhf, poolMat[ii + 1], DOF[ii + 1])
             fv[:, :3] += fv_input_pos
 
             # # vertex step (figure 17 middle)

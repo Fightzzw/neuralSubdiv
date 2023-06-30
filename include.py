@@ -1,21 +1,18 @@
 import os
 import sys
 
-cwd = os.getcwd()
-sys.path.append(cwd + '/pythongptoolbox/')
-sys.path.append(cwd + '/torchgptoolbox_nosparse/')
-sys.path.append('/work/Users/zhuzhiwei/neuralSubdiv-master/pythongptoolbox/')
-sys.path.append('/work/Users/zhuzhiwei/neuralSubdiv-master/torchgptoolbox_nosparse/')
+# cwd = os.getcwd()
+# sys.path.append('../pythongptoolbox/')
+# sys.path.append('../torchgptoolbox_nosparse/')
+# sys.path.append('/work/Users/zhuzhiwei/neuralSubdiv-master/pythongptoolbox/')
+# sys.path.append('/work/Users/zhuzhiwei/neuralSubdiv-master/torchgptoolbox_nosparse/')
 
 # torch
 import torch
 import torchgptoolbox_nosparse as tgp
 
 # pygptoolbox
-from readOBJ import readOBJ
-from writeOBJ import writeOBJ
-from findIdx import findIdx
-from midPointUpsampling import midPointUpsampling
+from pythongptoolbox.midPointUpsampling import midPointUpsampling
 
 # python standard 
 import numpy as np
@@ -81,7 +78,7 @@ def processTrainShapes(folder):
     meshes = []
 
     for ii in range(nObjs):
-        print('process meshes %d / %d' % (ii, nObjs))
+        print('\tprocess meshes %d / %d' % (ii, nObjs))
         meshes_i = [None] * (nSubd + 1)
         for jj in range(nSubd + 1):
             print('\tprocess subd %d / %d' % (jj, nSubd))
@@ -270,7 +267,7 @@ class TrainMeshes:
         self.poolMats, self.dofs = self.getFlapPool(self.hfList)
         self.LCs = self.getLaplaceCoordinate(self.hfList, self.poolMats, self.dofs)
 
-    def toDevice(self, device):
+    def old_toDevice(self, device):
         """
         move information to CPU/GPU
         """
@@ -285,6 +282,33 @@ class TrainMeshes:
                 self.poolMats[ii][jj] = self.poolMats[ii][jj].to(device)
                 self.dofs[ii][jj] = self.dofs[ii][jj].to(device)
 
+    def toDevice(self, device):
+        """
+        move information to CPU/GPU
+        """
+        for ii in range(self.nM):
+            for jj in range(self.nS):
+                self.meshes[ii][jj].V = self.meshes[ii][jj].V.to(device)
+                self.meshes[ii][jj].F = self.meshes[ii][jj].F.to(device)
+        for ii in range(self.nM):
+            self.LCs[ii] = self.LCs[ii].to(device)
+            for jj in range(self.nS):
+                self.hfList[ii][jj] = self.hfList[ii][jj].to(device)
+                self.poolMats[ii][jj] = self.poolMats[ii][jj].to(device)
+                self.dofs[ii][jj] = self.dofs[ii][jj].to(device)
+
+    def toDeviceId(self, mIdx, device):
+        """
+        move information to CPU/GPU
+        """
+        for jj in range(self.nS):
+            self.meshes[mIdx][jj].V = self.meshes[mIdx][jj].V.to(device)
+            self.meshes[mIdx][jj].F = self.meshes[mIdx][jj].F.to(device)
+        self.LCs[mIdx] = self.LCs[mIdx].to(device)
+        for jj in range(self.nS):
+            self.hfList[mIdx][jj] = self.hfList[mIdx][jj].to(device)
+            self.poolMats[mIdx][jj] = self.poolMats[mIdx][jj].to(device)
+            self.dofs[mIdx][jj] = self.dofs[mIdx][jj].to(device)
 
 def preprocessTestShapes(meshPathList, nSubd=2):
     """
@@ -478,7 +502,7 @@ class TestMeshes:
         self.poolMats, self.dofs = self.getFlapPool(self.hfList)
         self.LCs = self.getLaplaceCoordinate(self.hfList, self.poolMats, self.dofs)
 
-    def toDevice(self, device):
+    def old_toDevice(self, device):
         """
         move information to CPU/GPU
         """
@@ -494,7 +518,34 @@ class TestMeshes:
                 self.poolMats[ii][jj] = self.poolMats[ii][jj].to(device)
                 self.dofs[ii][jj] = self.dofs[ii][jj].to(device)
 
+    def toDevice(self, device):
+        """
+        move information to CPU/GPU
+        """
+        for ii in range(self.nM):
+            for jj in range(self.nS):
+                if jj == 0:
+                    self.meshes[ii][jj].V = self.meshes[ii][jj].V.to(device)
+                self.meshes[ii][jj].F = self.meshes[ii][jj].F.to(device)
+        for ii in range(self.nM):
+            self.LCs[ii] = self.LCs[ii].to(device)
+            for jj in range(self.nS):
+                self.hfList[ii][jj] = self.hfList[ii][jj].to(device)
+                self.poolMats[ii][jj] = self.poolMats[ii][jj].to(device)
+                self.dofs[ii][jj] = self.dofs[ii][jj].to(device)
 
+    def toDeviceId(self, mIdx, device):
+        """
+        move information to CPU/GPU
+        """
+        for jj in range(self.nS):
+            self.meshes[mIdx][jj].V = self.meshes[mIdx][jj].V.to(device)
+            self.meshes[mIdx][jj].F = self.meshes[mIdx][jj].F.to(device)
+        self.LCs[mIdx] = self.LCs[mIdx].to(device)
+        for jj in range(self.nS):
+            self.hfList[mIdx][jj] = self.hfList[mIdx][jj].to(device)
+            self.poolMats[mIdx][jj] = self.poolMats[mIdx][jj].to(device)
+            self.dofs[mIdx][jj] = self.dofs[mIdx][jj].to(device)
 def zzw_computeFlapList(V, F, numSubd=2):
     """
     Compute lists of vertex indices for half flaps and for all subsequent subdivision levels. Each half flap has vertices ordered like:

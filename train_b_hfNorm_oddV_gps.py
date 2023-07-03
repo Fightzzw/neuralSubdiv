@@ -22,6 +22,7 @@ def filter_mesh_before_train(S, T, net, params, lossFunc):
     train_pass_id = []
     valid_pass_id = []
     for mIdx in range(S.nM):
+        torch.cuda.empty_cache()
         # forward pass
         S.toDeviceId(mIdx, params['device'])
         x = S.getInputData(mIdx)
@@ -41,7 +42,7 @@ def filter_mesh_before_train(S, T, net, params, lossFunc):
 
         # compute loss function
         loss = 0.0
-        torch.cuda.empty_cache()
+
         for ii in range(params["numSubd"] + 1):
             nV = outputs[ii].size(0)
             loss += lossFunc(outputs[ii], Vt[:nV, :])
@@ -54,8 +55,10 @@ def filter_mesh_before_train(S, T, net, params, lossFunc):
 
     # loop over validation shapes
     for mIdx in range(T.nM):
-        x = T.getInputData(mIdx)
+        torch.cuda.empty_cache()
         T.toDeviceId(mIdx, params['device'])
+        x = T.getInputData(mIdx)
+        
         try:
             outputs = net(x, T.hfList[mIdx], T.poolMats[mIdx], T.dofs[mIdx])
         except RuntimeError as exception:
@@ -72,33 +75,42 @@ def filter_mesh_before_train(S, T, net, params, lossFunc):
 
         # compute loss function
         loss = 0.0
-        torch.cuda.empty_cache()
+
         for ii in range(params["numSubd"] + 1):
             nV = outputs[ii].size(0)
             loss += lossFunc(outputs[ii], Vt[:nV, :])
 
         # record validation error
         if loss.isnan().item():
-            print('[Valid epoch0] mIdx: %d, loss: nan, will pass this object' % mIdx)
+            print('[Filter: Valid] mIdx: %d, loss: nan, will pass this object' % mIdx)
             valid_pass_id.append(mIdx)
+        else:
+            print('[Filter: Valid] mIdx: %d, loss: %f' % (mIdx, loss.cpu()))
 
     return train_pass_id, valid_pass_id
 def main(args):
     # load hyper parameters
-    folder = args.job
     if os.path.exists(os.path.join(args.job, args.output_dir, 'hyperparameters.json')):
         print('Loading hyperparameters from ' + os.path.join(args.job, args.output_dir, 'hyperparameters.json'))
         with open(os.path.join(args.job, args.output_dir, 'hyperparameters.json'), 'r') as f:
             params = json.load(f)
     else:
-        print('Loading hyperparameters from ' + folder + 'hyperparameters.json')
-        with open(folder + 'hyperparameters.json', 'r') as f:
+        print('Loading hyperparameters from ' + os.path.join(args.job, 'hyperparameters.json'))
+        with open(os.path.join(args.job, 'hyperparameters.json'), 'r') as f:
             params = json.load(f)
+        # make dir and cp hyperparameters.json
+        output_path = os.path.join(args.job, args.output_dir)
+        os.path.exists(output_path) or os.makedirs(output_path)
+        cmd = 'cp ' + os.path.join(args.job, 'hyperparameters.json') + ' ' + output_path
+        os.system(cmd)
+        print(cmd)
+        
     # updata params in the training process
     params['output_path'] = os.path.join(args.job, args.output_dir)
     os.path.exists(params['output_path']) or os.makedirs(params['output_path'])
     params['lr'] = args.learning_rate
-    params['numSubd'] = args.num_subd
+    if args.num_subd is not None:
+        params['numSubd'] = args.num_subd
     pretrain_net = args.pretrain_net
     print(params)
 
@@ -300,7 +312,7 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--pretrain_net', type=str, default=None, help='pretrained net parameters file name')
     parser.add_argument('-l', '--learning_rate', type=float, default=2e-3, help='learning rate')
     parser.add_argument('-o', '--output_dir', type=str, default='test', help='output directory name')
-    parser.add_argument('-s', '--num_subd', type=int, default=3, help='num of subdivision in training')
+    parser.add_argument('-s', '--num_subd', type=int, default=None, help='num of subdivision in training')
     args = parser.parse_args()
 
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu

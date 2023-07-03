@@ -5,7 +5,7 @@ from __future__ import print_function
 import os.path
 
 from include import *
-from models import *
+from models.models_hfNorm import *
 NETPARAMS = 'netparams.dat'
 import argparse
 
@@ -22,10 +22,11 @@ def test_models():
     work_dir = '/work/Users/zhuzhiwei/neuralSubdiv-master/jobs/animal6_f1000_ns3_nm50+5/'
     # load hyper parameters
 
-    folder_list = ['hf_norm_12_pos', 'hf_norm_12_pos+fea', 'hf_norm_12x34_pos+fea']
+    folder_list = ['anchor_subd2', 'hf_norm_12_pos', 'hf_norm_12_pos+fea', 'hf_norm_12x34_pos+fea']
 
     folder_list = ['anchor_subd2']
     folder_list = ['odd_hiddenLayer2_dout64','odd_hiddenLayer4_dout3','odd_hiddenLayer4_dout64']
+    folder_list = ['hf_norm_12x34_pos+fea']
     for folder in folder_list:
         print('current net is: ', folder)
 
@@ -38,7 +39,7 @@ def test_models():
             with open(work_dir + 'hyperparameters.json', 'r') as f:
                 params = json.load(f)
         # params['epochs'] =6000
-        params['numSubd'] = 2
+        params['numSubd'] = 3
         net_path = os.path.join(work_dir, folder, 'netparams_%d.dat'% params['epochs'])
         # initialize network
         net = SubdNet(params)
@@ -48,15 +49,16 @@ def test_models():
 
         output_root_dir = os.path.join(work_dir, folder, 'test')
 
-        mesh_root_dir = '/work/Users/zhuzhiwei/neuralSubdiv/data_meshes/'
-        mesh_list = ['jaw_f1000_ns3_nm200', 'Horse_f1000_ns3_nm200', 'horse_f600_ns3_nm200']
+        mesh_root_dir = '/work/Users/zhuzhiwei/dataset/mesh/free3d-animal/animal-3kk/'
+        mesh_list = ['Camel_f1000_ns3_nm50', 'Dog_f1000_ns3_nm50', 'Lion_f1000_ns3_nm50', 'Panda_f1000_ns3_nm50']
         for mesh_name in mesh_list:
-            for i in range(1, 200, 20):
+            max_num = 50
+            for i in range(1, max_num, 10):
                 mesh_dir = os.path.join(mesh_root_dir, mesh_name, 'subd0')
-                meshPath = [os.path.join(mesh_dir, str(i).zfill(3)+'.obj')]
+                meshPath = [os.path.join(mesh_dir, str(i).zfill(len(str(max_num)))+'.obj')]
                 output_dir = os.path.join(output_root_dir, mesh_name)
                 os.path.exists(output_dir) or os.makedirs(output_dir)
-                out_path = os.path.join(output_dir, str(i).zfill(3)+'_subd'+str(params['numSubd'])+'.obj')
+                out_path = os.path.join(output_dir, str(i).zfill(len(str(max_num)))+'_subd'+str(params['numSubd'])+'.obj')
                 print(meshPath)
                 T = TestMeshes(meshPath, params['numSubd'])
                 T.computeParameters()

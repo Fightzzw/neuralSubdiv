@@ -323,7 +323,7 @@ def preprocessTestShapes(meshPathList, nSubd=2):
         # V = tgp.normalizeUnitCube(V) * 2  # zzw
         V, scale = tgp.my_normalizeUnitCube(V)  # zzw
         scales[meshIdx] = scale  # zzw
-        FList, hfList = computeFlapList(V, F, nSubd)
+        FList, hfList = computeFlapList(V, F, nSubd+1)
 
         meshes_i = [None] * (nSubd + 1)
         for jj in range(nSubd + 1):
@@ -414,8 +414,11 @@ class TestMeshes:
         """
         HF = [None] * self.nM
         for ii in range(self.nM):
+            #print(ii)
             fifj = [None] * (self.nS)
             for jj in range(self.nS):
+                #print(jj)
+                #print(self.meshes[ii][jj].hfList)
                 idx = self.meshes[ii][jj].hfList[:, [0, 1, 2, 3]]
                 fifj[jj] = idx.reshape(-1, 4)
             HF[ii] = list(fifj)

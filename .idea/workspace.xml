@@ -5,34 +5,22 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="1f4b90ad-8630-437c-bc7a-9db102061ef4" name="更改" comment="使gendataPKL并行化">
-      <change afterPath="$PROJECT_DIR$/batch_train_hfNorm_oddV.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/dataset.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/models/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/models/models_b_hfNorm_oddV.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/pythongptoolbox/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/models_b_hfNorm_oddV_gps.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/train_b_hfNorm_oddV_gps.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/calMinSphere.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data_handle.py" beforeDir="false" afterPath="$PROJECT_DIR$/utlis/data_handle.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gendataPKL.py" beforeDir="false" afterPath="$PROJECT_DIR$/gendataPKL.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/batch_train_hfNorm_oddV.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_b_hfNorm_oddV.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/include.py" beforeDir="false" afterPath="$PROJECT_DIR$/include.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/include_old.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mesh_subdivision.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/metrics.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/min_sphere.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models_hfNorm_oddV.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models_hf_norm.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models_oddvertices.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/models_rnn.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/my_meshFunction.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/pythongptoolbox/midPointUpsampling.py" beforeDir="false" afterPath="$PROJECT_DIR$/pythongptoolbox/midPointUpsampling.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/read_log.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/train.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/train_hfNorm_oddV.py" beforeDir="false" afterPath="$PROJECT_DIR$/train_hfNorm_oddV.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/train_hf_norm.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/train_oddvertices.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/writeHyperparam.py" beforeDir="false" afterPath="$PROJECT_DIR$/writeHyperparam.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/models_hfNorm.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/models_hfNorm.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utlis/calMinSphere.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/utlis/data_handle.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/utlis/gps.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/utlis/mesh_subdivision.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/utlis/metrics.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/utlis/min_sphere.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/utlis/my_meshFunction.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/utlis/read_log.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/zzw_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/zzw_test.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -72,48 +60,26 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "WebServerToolWindowFactoryState": "true",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "preferences.pluginManager",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;WebServerToolWindowFactoryState&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="D:\PythonProjFile\neuralSubdiv-master\utlis" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.batch_train_hfNorm_oddV">
-    <configuration name="batch_train_hfNorm_oddV" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="neuralSubdiv-master" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/batch_train_hfNorm_oddV.py" />
-      <option name="PARAMETERS" value="-j jobs/10k_sf_train60_subdiv_fn1000_valid500/ -o batch_test -g 0" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
+  <component name="RunManager" selected="Python.train_b_hfNorm_oddV">
     <configuration name="metrics" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="neuralSubdiv-master" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -151,6 +117,28 @@
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/train.py" />
       <option name="PARAMETERS" value="-j jobs/10k_surface_fr0.06_ns3_nm5550_test+valid/ -o anchor_6h128_1 -g 2" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="train_b_hfNorm_oddV" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="neuralSubdiv-master" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="D:\PythonProjFile\neuralSubdiv-master\train_b_hfNorm_oddV.py" />
+      <option name="PARAMETERS" value="-j jobs/10k_sf_train60_subdiv_fn1000_valid500/ -o batch_test -g 0" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -225,7 +213,7 @@
       <method v="2" />
     </configuration>
     <list>
-      <item itemvalue="Python.batch_train_hfNorm_oddV" />
+      <item itemvalue="Python.train_b_hfNorm_oddV" />
       <item itemvalue="Python.train" />
       <item itemvalue="Python.train_hfNorm_oddV" />
       <item itemvalue="Python.metrics" />
@@ -233,7 +221,7 @@
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.batch_train_hfNorm_oddV" />
+        <item itemvalue="Python.train_b_hfNorm_oddV" />
         <item itemvalue="Python.train" />
         <item itemvalue="Python.train_hfNorm_oddV" />
         <item itemvalue="Python.train_hfNorm_oddV" />
@@ -252,7 +240,9 @@
       <workItem from="1685589106183" duration="89000" />
       <workItem from="1685589211798" duration="182701000" />
       <workItem from="1687668128524" duration="6483000" />
-      <workItem from="1687743442256" duration="79025000" />
+      <workItem from="1687743442256" duration="81378000" />
+      <workItem from="1688194588735" duration="1301000" />
+      <workItem from="1688348036079" duration="2633000" />
     </task>
     <servers />
   </component>
@@ -279,12 +269,12 @@
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/include.py</url>
-          <line>659</line>
+          <line>662</line>
           <option name="timeStamp" value="28" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/include.py</url>
-          <line>763</line>
+          <line>766</line>
           <option name="timeStamp" value="30" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -299,8 +289,8 @@
           <option name="timeStamp" value="44" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/batch_train_hfNorm_oddV.py</url>
-          <line>48</line>
+          <url>file://$PROJECT_DIR$/train_b_hfNorm_oddV.py</url>
+          <line>49</line>
           <option name="timeStamp" value="45" />
         </line-breakpoint>
       </breakpoints>

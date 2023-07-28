@@ -35,13 +35,13 @@ class MLP(torch.nn.Module):
 
 class SubdNet(torch.nn.Module):
     # Subdivision network
-    # This network consist of three MLPs (net_init, net_edge, net_vertex), and the forward pass is describe in the Section 5 of the paper 
+    # This network consist of three MLPs (net_init, net_edge, net_vertex), and the forward pass is describe in the Section 5 of the paper
     def __init__(self, params):
         super(SubdNet, self).__init__()
         Din = params['Din']  # input dimension
         Dout = params['Dout']  # output dimension
 
-        # initialize three MLPs 
+        # initialize three MLPs
         self.net_init = MLP(4 * Din - 3, params['h_initNet'], Dout)
         self.net_edge = MLP(4 * Dout - 3, params['h_edgeNet'], Dout)
         self.net_vertex = MLP(4 * Dout - 3, params['h_vertexNet'], Dout)
@@ -160,13 +160,13 @@ class SubdNet(torch.nn.Module):
 
         inputs:
           hf: 2*nE x 4 x Dim tensor of half flap features (in world coordinates)
-          normalizeFeature: True/False whether to normalize the feature vectors 
+          normalizeFeature: True/False whether to normalize the feature vectors
 
-        output: 
+        output:
           hf_normalize: 2*nE x 4 x Dim tensor of half flap features (in local coordinates)
           localFrames a 3-by-3 matrix [b1; b2; b3] with frames b1, b2, b3
 
-        Note: 
+        Note:
         we only set "normalizeFeature" to True in the initialization network to make the differential coordinate features invariant to rigid motions, see figure 18 (top)
         """
 
@@ -211,26 +211,28 @@ class SubdNet(torch.nn.Module):
         # calculate the length of the edge vector12
         normalize_length = torch.norm(hf_pos[:, 1, :], dim=1).unsqueeze(1).unsqueeze(1)
 
-        # 2. normalize_length = radius of the circumscribed sphere of half flap
+        # 2. normalize_length = len_edge12 * len_edge34
+        # len_edge12 = torch.norm(hf_pos[:, 1, :], dim=1).unsqueeze(1).unsqueeze(1)
+        # len_edge34 = torch.norm(hf_pos[:, 3, :] - hf_pos[:, 2, :], dim=1).unsqueeze(1).unsqueeze(1)
+        # normalize_length = len_edge12 * len_edge34
+        # # 对normalize_length开根号
+        # normalize_length = torch.sqrt(normalize_length)
+
+        # 3. normalize_length = radius of the circumscribed sphere of half flap
         # calculate the circumscribed sphere of the half flap
         # normalize_length = torch.ones(hf_pos.size(0))
         # max_normazlize_length = 100000
         # for i in range(hf_pos.size(0)):
         #     _, radius = self.fit_sphere_4points(hf_pos[i, :, :].cpu().detach().numpy())
         #     if radius == np.inf:
-        #         print('%d/%d' % (i, hf_pos.size(0)))
-        #         print(hf_pos[i, :, :].cpu().detach().numpy())
-        #         print('radius is inf, we set it to max_normazlize_length = %d' % max_normazlize_length)
+        #         # print('%d/%d' % (i, hf_pos.size(0)))
+        #         # print(hf_pos[i, :, :].cpu().detach().numpy())
+        #         # print('radius is inf, we set it to max_normazlize_length = %d' % max_normazlize_length)
         #         radius = max_normazlize_length
         #     normalize_length[i] = torch.from_numpy(np.array(radius))
         #
         # normalize_length = normalize_length.unsqueeze(1).unsqueeze(1).cuda()
-        # 3. normalize_length = len_edge12 * len_edge34
-        # len_edge12 = torch.norm(hf_pos[:, 1, :], dim=1).unsqueeze(1).unsqueeze(1)
-        # len_edge34 = torch.norm(hf_pos[:, 3, :] - hf_pos[:, 2, :], dim=1).unsqueeze(1).unsqueeze(1)
-        # normalize_length = len_edge12 * len_edge34
-        # # 对normalize_length开根号
-        # normalize_length = torch.sqrt(normalize_length)
+
 
         # 4. normalize_length = radius of the min sphere of half flap
         # normalize_length = torch.ones(hf_pos.size(0))
@@ -285,7 +287,7 @@ class SubdNet(torch.nn.Module):
 
     def local2Global(self, hf_local, LFs, normalize_length):
         '''
-        LOCAL2GLOBAL turns position features (the first three elements) described in the local frame of an half-flap to world coordinates  
+        LOCAL2GLOBAL turns position features (the first three elements) described in the local frame of an half-flap to world coordinates
         '''
         hf_local_pos = hf_local[:, :3] * normalize_length.squeeze(1)  # get the vertex position features
         hf_feature = hf_local[:, 3:]  # get the high-dim features
@@ -323,15 +325,15 @@ class SubdNet(torch.nn.Module):
         Ve = self.halfEdgePool(Ve)
         return Ve
 
-    def forward(self, fv, mIdx, HFs, poolMats, DOFs):
+    def forward(self, fv,  HF, poolMat, DOF):
         outputs = []
 
         # initialization step (figure 17 left)
         fv_input_pos = fv[:, :3]
-        fhf, LFs, normalize_length = self.v2hf_initNet(fv, HFs[mIdx][0])
+        fhf, LFs, normalize_length = self.v2hf_initNet(fv, HF[0])
         fhf = self.net_init(fhf)
         fhf = self.local2Global(fhf, LFs, normalize_length)
-        fv = self.oneRingPool(fhf, poolMats[mIdx][0], DOFs[mIdx][0])
+        fv = self.oneRingPool(fhf, poolMat[0], DOF[0])
         fv[:, :3] += fv_input_pos
 
         outputs.append(fv[:, :3])
@@ -340,16 +342,16 @@ class SubdNet(torch.nn.Module):
         for ii in range(self.numSubd):
             # vertex step (figure 17 middle)
             prevPos = fv[:, :3]
-            fhf, LFs, normalize_length = self.v2hf(fv, HFs[mIdx][ii])  # 2*nE x 4*Dout
+            fhf, LFs, normalize_length = self.v2hf(fv, HF[ii])  # 2*nE x 4*Dout
             fhf = self.net_vertex(fhf)  # 2*nE x Dout
             fhf = self.local2Global(fhf, LFs, normalize_length)
-            fv = self.oneRingPool(fhf, poolMats[mIdx][ii], DOFs[mIdx][ii])  # nv x Dout
+            fv = self.oneRingPool(fhf, poolMat[ii], DOF[ii])  # nv x Dout
             fv[:, :3] += prevPos
             fv_even = fv
 
             # edge step (figure 17 right)
-            Ve = self.edgeMidPoint(fv, HFs[mIdx][ii])  # compute mid point
-            fhf, LFs, normalize_length = self.v2hf(fv, HFs[mIdx][ii])  # 2*nE x 4*Dout
+            Ve = self.edgeMidPoint(fv, HF[ii])  # compute mid point
+            fhf, LFs, normalize_length = self.v2hf(fv, HF[ii])  # 2*nE x 4*Dout
             fv_odd = self.net_edge(fhf)  # 2*nE x Dout
             fv_odd = self.local2Global(fv_odd, LFs, normalize_length)
             fv_odd = self.halfEdgePool(fv_odd)  # nE x Dout

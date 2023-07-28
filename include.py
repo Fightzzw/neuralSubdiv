@@ -310,6 +310,7 @@ class TrainMeshes:
             self.poolMats[mIdx][jj] = self.poolMats[mIdx][jj].to(device)
             self.dofs[mIdx][jj] = self.dofs[mIdx][jj].to(device)
 
+
 def preprocessTestShapes(meshPathList, nSubd=2):
     """
     process testing shapes given a list of .obj paths, including normalizing the shape and computing the half flap list

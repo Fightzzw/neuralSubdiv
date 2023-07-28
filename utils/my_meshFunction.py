@@ -698,8 +698,15 @@ def cal_d1_psnr(gt_mesh_path, pred_mesh_path, vertex_num=500000):
     # point to point distance
     D1 = max(np.mean(dist_p2g ** 2), np.mean(dist_g2p ** 2))
 
-    d1_psnr = d1_mse2psnr(D1)
-    # print('d1_psnr', d1_psnr)
+    max_distance = np.max(gt_points, axis=0) - np.min(gt_points, axis=0)
+
+    max_distance = np.linalg.norm(max_distance)**2
+    print('max_distance', max_distance)
+
+
+    d1_psnr = 10 * math.log10(max_distance / D1)
+
+    print('d1_psnr', d1_psnr)
     return d1_psnr
 
 
@@ -951,8 +958,8 @@ def bat_draw_fig():
             plt.close(fig)
 
 
-def d1_mse2psnr(mse):
-    d1_psnr = 10 * math.log10(3 * pow(2, 12) * pow(2, 12) / mse)
+def d1_mse2psnr(mse, bitdepth=12):
+    d1_psnr = 10 * math.log10(3 * pow(2, bitdepth) * pow(2, bitdepth) / mse)
     return d1_psnr
 
 

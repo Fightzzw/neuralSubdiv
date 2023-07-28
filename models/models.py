@@ -187,10 +187,10 @@ class SubdNet(torch.nn.Module):
         fv = self.oneRingPool(fhf, poolMats[mIdx][0], DOFs[mIdx][0])
         fv[:,:3] += fv_input_pos
 
-        outputs.append(fv[:,:3]) 
+        outputs.append(fv[:,:3])  # 对subd0的微调结果
 
         # subdivision starts
-        for ii in range(self.numSubd):
+        for ii in range(self.numSubd): # self.numSubd = params['numSubd']
 
             # vertex step (figure 17 middle)
             prevPos = fv[:,:3]

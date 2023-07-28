@@ -32,16 +32,16 @@ class MLP(torch.nn.Module):
 
 class SubdNet(torch.nn.Module):
     # Subdivision network
-    # This network consist of three MLPs (net_init, net_edge, net_vertex), and the forward pass is describe in the Section 5 of the paper 
+    # This network consist of three MLPs (net_init, net_edge, net_vertex), and the forward pass is describe in the Section 5 of the paper
     def __init__(self, params):
         super(SubdNet, self).__init__()
         Din = params['Din']  # input dimension
         Dout = params['Dout']  # output dimension
 
-        # initialize three MLPs 
+        # initialize three MLPs
         self.net_init = MLP(4 * Din - 3, params['h_initNet'], Dout)
-        self.net_edge = MLP(4 * Dout - 3, params['h_edgeNet'], Dout)
-        # self.net_vertex = MLP(4 * Dout - 3, params['h_vertexNet'], Dout)
+        # self.net_edge = MLP(4 * Dout - 3, params['h_edgeNet'], Dout)
+        self.net_vertex = MLP(4 * Dout - 3, params['h_vertexNet'], Dout)
 
         self.pool = torch.nn.AvgPool2d((2, 1))  # half-edge pool
         self.numSubd = params["numSubd"]  # number of subdivisions
@@ -52,13 +52,13 @@ class SubdNet(torch.nn.Module):
 
         inputs:
           hf: 2*nE x 4 x Dim tensor of half flap features (in world coordinates)
-          normalizeFeature: True/False whether to normalize the feature vectors 
+          normalizeFeature: True/False whether to normalize the feature vectors
 
-        output: 
+        output:
           hf_normalize: 2*nE x 4 x Dim tensor of half flap features (in local coordinates)
           localFrames a 3-by-3 matrix [b1; b2; b3] with frames b1, b2, b3
 
-        Note: 
+        Note:
         we only set "normalizeFeature" to True in the initialization network to make the differential coordinate features invariant to rigid motions, see figure 18 (top)
         """
 
@@ -140,7 +140,7 @@ class SubdNet(torch.nn.Module):
 
     def local2Global(self, hf_local, LFs):
         '''
-        LOCAL2GLOBAL turns position features (the first three elements) described in the local frame of an half-flap to world coordinates  
+        LOCAL2GLOBAL turns position features (the first three elements) described in the local frame of an half-flap to world coordinates
         '''
         hf_local_pos = hf_local[:, :3]  # get the vertex position features
         hf_feature = hf_local[:, 3:]  # get the high-dim features
@@ -202,51 +202,15 @@ class SubdNet(torch.nn.Module):
         LC = dV_v
         return LC
 
-    def forward_only_initnet(self, fv, mIdx, HFs, poolMats, DOFs):
+    def forward_only_initnet(self, fv, HF, poolMat, DOF):
         outputs = []
 
         # initialization step (figure 17 left)
         fv_input_pos = fv[:, :3]
-        fhf, LFs = self.v2hf_initNet(fv, HFs[mIdx][0])
+        fhf, LFs = self.v2hf_initNet(fv, HF[0])
         fhf = self.net_init(fhf)
         fhf = self.local2Global(fhf, LFs)
-        fv = self.oneRingPool(fhf, poolMats[mIdx][0], DOFs[mIdx][0])
-        fv[:, :3] += fv_input_pos
-
-        outputs.append(fv[:, :3])
-
-        # subdivision starts
-        for ii in range(self.numSubd-1):
-            # 1, compute the mid-point of each edge
-            # 2, vertex step (figure 17 middle)
-            Ve = self.edgeMidPoint(fv, HFs[mIdx][ii])  # compute edge mid point
-            fv_input_pos = torch.cat((fv[:, :3], Ve), dim=0)  # nV_next x 3
-            # calculate laplace coordinate
-            LC = self.getLaplaceCoordinate(fv_input_pos,  HFs[mIdx][ii+1], poolMats[mIdx][ii+1], DOFs[mIdx][ii+1])
-
-            fv = torch.cat((fv_input_pos, LC), dim=1)  # nV_next x Din
-
-            # initialization step, low dimensional features to high dimensional features
-            fv_input_pos = fv[:, :3]
-            fhf, LFs = self.v2hf_initNet(fv, HFs[mIdx][ii + 1])  #
-            fhf = self.net_init(fhf)  # mlp,低维到高维
-            fhf = self.local2Global(fhf, LFs)
-            fv = self.oneRingPool(fhf, poolMats[mIdx][ii+1], DOFs[mIdx][ii+1])
-            fv[:, :3] += fv_input_pos
-
-            outputs.append(fv[:, :3])
-
-        return outputs
-
-    def forward_init_vertex(self, fv, mIdx, HFs, poolMats, DOFs):
-        outputs = []
-
-        # initialization step (figure 17 left)
-        fv_input_pos = fv[:, :3]
-        fhf, LFs = self.v2hf_initNet(fv, HFs[mIdx][0])
-        fhf = self.net_init(fhf)
-        fhf = self.local2Global(fhf, LFs)
-        fv = self.oneRingPool(fhf, poolMats[mIdx][0], DOFs[mIdx][0])
+        fv = self.oneRingPool(fhf, poolMat[0], DOF[0])
         fv[:, :3] += fv_input_pos
 
         outputs.append(fv[:, :3])
@@ -255,43 +219,81 @@ class SubdNet(torch.nn.Module):
         for ii in range(self.numSubd):
             # 1, compute the mid-point of each edge
             # 2, vertex step (figure 17 middle)
-            Ve = self.edgeMidPoint(fv, HFs[mIdx][ii])  # compute edge mid point
+            Ve = self.edgeMidPoint(fv, HF[ii])  # compute edge mid point
             fv_input_pos = torch.cat((fv[:, :3], Ve), dim=0)  # nV_next x 3
             # calculate laplace coordinate
-            LC = self.getLaplaceCoordinate(fv_input_pos,  HFs[mIdx][ii+1], poolMats[mIdx][ii+1], DOFs[mIdx][ii+1])
+            LC = self.getLaplaceCoordinate(fv_input_pos,  HF[ii+1], poolMat[ii+1], DOF[ii+1])
 
             fv = torch.cat((fv_input_pos, LC), dim=1)  # nV_next x Din
 
             # initialization step, low dimensional features to high dimensional features
             fv_input_pos = fv[:, :3]
-            fhf, LFs = self.v2hf_initNet(fv, HFs[mIdx][ii + 1])  #
+            fhf, LFs = self.v2hf_initNet(fv, HF[ii + 1])  #
             fhf = self.net_init(fhf)  # mlp,低维到高维
             fhf = self.local2Global(fhf, LFs)
-            fv = self.oneRingPool(fhf, poolMats[mIdx][ii+1], DOFs[mIdx][ii+1])
-            # fv[:, :3] += fv_input_pos
+            fv = self.oneRingPool(fhf, poolMat[ii+1], DOF[ii+1])
+            fv[:, :3] += fv_input_pos
+
+            outputs.append(fv[:, :3])
+
+        return outputs
+
+    def forward_init_vertex(self, fv, HF, poolMat, DOF):
+        outputs = []
+
+        # initialization step (figure 17 left)
+        fv_input_pos = fv[:, :3]
+        fhf, LFs = self.v2hf_initNet(fv, HF[0])
+        fhf = self.net_init(fhf)
+        fhf = self.local2Global(fhf, LFs)
+        fv = self.oneRingPool(fhf, poolMat[0], DOF[0])
+        fv[:, :3] += fv_input_pos
+
+        outputs.append(fv[:, :3])
+
+        # subdivision starts
+        for ii in range(self.numSubd):
+            # 1, compute the mid-point of each edge
+            # 2, vertex step (figure 17 middle)
+            Ve = self.edgeMidPoint(fv, HF[ii])  # compute edge mid point
+            fv_input_pos = torch.cat((fv[:, :3], Ve), dim=0)  # nV_next x 3
+            # calculate laplace coordinate
+            LC = self.getLaplaceCoordinate(fv_input_pos,  HF[ii+1], poolMat[ii+1], DOF[ii+1])
+
+            fv = torch.cat((fv_input_pos, LC), dim=1)  # nV_next x Din
+
+            # initialization step, low dimensional features to high dimensional features
+            fv_input_pos = fv[:, :3]
+            fhf, LFs = self.v2hf_initNet(fv, HF[ii + 1])  #
+            fhf = self.net_init(fhf)  # mlp,低维到高维
+            fhf = self.local2Global(fhf, LFs)
+            fv = self.oneRingPool(fhf, poolMat[ii+1], DOF[ii+1])
+            fv[:, :3] += fv_input_pos
 
             # 不注释的话，相当于要求init_net的输出是一个坐标残差,缩小了其取值范围，不过是约束好？还是随机的好？不好说
-            # 20230704， 趋向于不约束
+            # 20230704， 趋向于不约束，实验表明约束能收敛更快
 
             # vertex step (figure 17 middle)
             prevPos = fv[:, :3]
-            fhf, LFs = self.v2hf(fv, HFs[mIdx][ii + 1])  # 2*nE x 4*Dout
+            fhf, LFs = self.v2hf(fv, HF[ii + 1])  # 2*nE x 4*Dout
             fhf = self.net_vertex(fhf)
             fhf = self.local2Global(fhf, LFs)
-            fv = self.oneRingPool(fhf, poolMats[mIdx][ii+1], DOFs[mIdx][ii + 1])
+            fv = self.oneRingPool(fhf, poolMat[ii + 1], DOF[ii + 1])
             fv[:, :3] += prevPos
 
             outputs.append(fv[:, :3])
 
-    def forward_midfeature(self, fv, mIdx, HFs, poolMats, DOFs):
+        return outputs
+
+    def forward_midfeature(self, fv, HF, poolMat, DOF):
         outputs = []
 
         # initialization step (figure 17 left)
         fv_input_pos = fv[:, :3]
-        fhf, LFs = self.v2hf_initNet(fv, HFs[mIdx][0])
+        fhf, LFs = self.v2hf_initNet(fv, HF[0])
         fhf = self.net_init(fhf)
         fhf = self.local2Global(fhf, LFs)
-        fv = self.oneRingPool(fhf, poolMats[mIdx][0], DOFs[mIdx][0])
+        fv = self.oneRingPool(fhf, poolMat[0], DOF[0])
         fv[:, :3] += fv_input_pos
 
         outputs.append(fv[:, :3])
@@ -300,29 +302,28 @@ class SubdNet(torch.nn.Module):
         for ii in range(self.numSubd):
             # 1, compute the mid-point of each edge, position and feature
             # 2, vertex step (figure 17 middle)
-            fe = self.edgeMidPointFeature(fv, HFs[mIdx][ii])  # compute edge mid point
+            fe = self.edgeMidPointFeature(fv, HF[ii])  # compute edge mid point
             fv = torch.cat((fv, fe), dim=0)  # nV_next x Dout
             fv_input_pos = fv[:, :3]
 
-            fhf, LFs = self.v2hf(fv, HFs[mIdx][ii + 1])  # 2*nE x 4*Dout
+            fhf, LFs = self.v2hf(fv, HF[ii + 1])  # 2*nE x 4*Dout
             fhf = self.net_vertex(fhf)
             fhf = self.local2Global(fhf, LFs)
-            fv = self.oneRingPool(fhf, poolMats[mIdx][ii+1], DOFs[mIdx][ii + 1])
+            fv = self.oneRingPool(fhf, poolMat[ii + 1], DOF[ii + 1])
             fv[:, :3] += fv_input_pos
 
             outputs.append(fv[:, :3])
 
         return outputs
-
-    def forward(self, fv, mIdx, HFs, poolMats, DOFs):
+    def forward(self, fv, HF, poolMat, DOF):
         outputs = []
 
         # initialization step (figure 17 left)
         fv_input_pos = fv[:, :3]
-        fhf, LFs = self.v2hf_initNet(fv, HFs[mIdx][0])
+        fhf, LFs = self.v2hf_initNet(fv, HF[0])
         fhf = self.net_init(fhf)
         fhf = self.local2Global(fhf, LFs)
-        fv = self.oneRingPool(fhf, poolMats[mIdx][0], DOFs[mIdx][0])
+        fv = self.oneRingPool(fhf, poolMat[0], DOF[0])
         fv[:, :3] += fv_input_pos
 
         outputs.append(fv[:, :3])
@@ -331,14 +332,14 @@ class SubdNet(torch.nn.Module):
         for ii in range(self.numSubd):
             # 1, compute the mid-point of each edge, position and feature
             # 2, vertex step (figure 17 middle)
-            fe = self.edgeMidPointFeature(fv, HFs[mIdx][ii])  # compute edge mid point
+            fe = self.edgeMidPointFeature(fv, HF[ii])  # compute edge mid point
             fv = torch.cat((fv, fe), dim=0)  # nV_next x Dout
             fv_input_pos = fv[:, :3]
 
-            fhf, LFs = self.v2hf(fv, HFs[mIdx][ii + 1])  # 2*nE x 4*Dout
+            fhf, LFs = self.v2hf(fv, HF[ii + 1])  # 2*nE x 4*Dout
             fhf = self.net_vertex(fhf)
             fhf = self.local2Global(fhf, LFs)
-            fv = self.oneRingPool(fhf, poolMats[mIdx][ii+1], DOFs[mIdx][ii + 1])
+            fv = self.oneRingPool(fhf, poolMat[ii + 1], DOF[ii + 1])
             fv[:, :3] += fv_input_pos
 
             outputs.append(fv[:, :3])

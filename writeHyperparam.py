@@ -4,18 +4,18 @@ import os
 def main():
 
     data = {
-        "train_pkl": "./data_PKL/10k_surface_fr0.06_ns3_nm5550_test/test_total_564.pkl",
-        "valid_pkl": "./data_PKL/10k_surface_fr0.06_ns3_nm5550_valid/valid_total_563.pkl",
-        "output_path": './jobs/10k_surface_fr0.06_ns3_nm5550_test+valid/',
+        "train_pkl": "./data_PKL/76947_sf_f1000_ns3_nm10.pkl",
+        "valid_pkl": "./data_PKL/76947_sf_f1000_ns3_nm10.pkl",
+        "output_path": './jobs/76947_sf_f1000_ns3_nm10/',
         "epochs": 3000,
-        "batch_size": 16,
+        "batch_size": 1,
         "lr": 2e-3, 
         "device": 'cuda',
         "Din": 6,
-        "Dout": 128,
-        "h_initNet": [128, 128,128, 128,128, 128],
-        #"h_edgeNet":  [128, 128],
-        #"h_vertexNet": [128, 128],
+        "Dout": 32,
+        "h_initNet": [32, 32],
+        "h_edgeNet":  [32, 32],
+        "h_vertexNet": [32, 32],
         "numSubd": 3,
     }
 

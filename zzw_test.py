@@ -5,7 +5,7 @@ from __future__ import print_function
 import os.path
 
 from include import *
-from models.models_hfNorm import *
+from models.models_b_hfNorm import *
 NETPARAMS = 'netparams.dat'
 import argparse
 
@@ -17,6 +17,82 @@ import argparse
 #   2. testing triangles has triangle size that are not in the training data
 #   (we include a failure case in the data: the ear of the horse.obj)
 
+def test_models_midx():
+
+    work_dir = '/work/Users/zhuzhiwei/neuralSubdiv-master/jobs/animal6_f1000_ns3_nm50+5/'
+    # load hyper parameters
+
+    folder_list = ['anchor_subd2', 'hf_norm_12_pos', 'hf_norm_12_pos+fea', 'hf_norm_12x34_pos+fea']
+
+    folder_list = ['anchor_subd2']
+    folder_list = ['odd_hiddenLayer2_dout64','odd_hiddenLayer4_dout3','odd_hiddenLayer4_dout64']
+    folder_list = ['hf_norm_12_pos+fea_trainloss']
+    folder_list = ['b1_anchor', 'b1_hfNorm_12', 'b1_hfNorm_12x34', 'b1_oddV_netIV']
+    folder_list = ['b8_hfNorm']
+
+    folder = folder_list[0]
+    print('current net is: ', folder)
+
+    if os.path.exists(os.path.join(work_dir, folder, 'hyperparameters.json')):
+        print('Loading hyperparameters from ' + os.path.join(work_dir, folder, 'hyperparameters.json'))
+        with open(os.path.join(work_dir, folder, 'hyperparameters.json'), 'r') as f:
+            params = json.load(f)
+    else:
+        print('Loading hyperparameters from ' + work_dir + 'hyperparameters.json')
+        with open(work_dir + 'hyperparameters.json', 'r') as f:
+            params = json.load(f)
+    # params['epochs'] =6000
+    params['numSubd'] = 3
+    net_path = os.path.join(work_dir, folder, 'netparams_b8_t300_v30_e2000.dat')
+    # initialize network
+    net = SubdNet(params)
+    net = net.to(params['device'])
+    net.load_state_dict(torch.load(net_path, map_location=torch.device(params["device"])))
+    net.eval()
+
+    output_root_dir = os.path.join(work_dir, folder, 'test_10k_sf_train60_subdiv_fn1000_e2000')
+    # 训练集 
+    # mesh_root_dir = '/work/Users/zhuzhiwei/dataset/mesh/free3d-animal/animal-3kk/'
+    # mesh_list = ['Camel_f1000_ns3_nm50', 'Dog_f1000_ns3_nm50', 'Lion_f1000_ns3_nm50', 'Panda_f1000_ns3_nm50']
+    # 测试集 
+    #mesh_root_dir = '/work/Users/zhuzhiwei/neuralSubdiv-master/data_meshes/'
+    #mesh_list = ['bob_f600_ns3_nm20']
+
+    # 测试集：
+    mesh_root_dir = '/work/Users/zhuzhiwei/dataset/mesh/10k_sf_train60_subdiv_fn1000/'
+    # 将mesh_root_dir中的文件夹名字作为mesh_list
+
+    mesh_list = os.listdir(mesh_root_dir)
+
+    
+    for mesh_name in mesh_list:
+        max_num = 10
+        for i in range(1, max_num, 10):
+            mesh_dir = os.path.join(mesh_root_dir, mesh_name, 'subd0')
+            meshPath = [os.path.join(mesh_dir, str(i).zfill(len(str(max_num)))+'.obj')]
+            output_dir = os.path.join(output_root_dir, mesh_name)
+            os.path.exists(output_dir) or os.makedirs(output_dir)
+            out_path = os.path.join(output_dir, str(i).zfill(len(str(max_num)))+'_subd'+str(params['numSubd'])+'.obj')
+            print(meshPath)
+            T = TestMeshes(meshPath, params['numSubd'])
+            T.computeParameters()
+            if not torch.cuda.is_available():
+                params['device'] = 'cpu'
+            T.toDevice(params["device"])
+
+            # write output shapes (test set)
+            mIdx = 0
+            scale = T.getScale(mIdx) # may need to adjust the scale of the mesh since the network is not scale invariant
+
+            x = T.getInputData(mIdx)
+            #outputs = net.forward_midfeature(x, T.hfList[mIdx],T.poolMats[mIdx],T.dofs[mIdx])
+            outputs = net(x, T.hfList[mIdx], T.poolMats[mIdx], T.dofs[mIdx])
+
+            ii = len(outputs) - 1
+            x = outputs[ii].cpu() * scale[1] + scale[0].unsqueeze(0)
+            # tgp.writeOBJ(params['output_path'] + meshName + '_subd' + str(ii) + '.obj',x, T.meshes[mIdx][ii].F.to('cpu'))
+            tgp.writeOBJ(out_path, x, T.meshes[mIdx][ii].F.to('cpu'))
+            print('write to ', out_path)
 def test_models():
 
     work_dir = '/work/Users/zhuzhiwei/neuralSubdiv-master/jobs/animal6_f1000_ns3_nm50+5/'
@@ -26,7 +102,7 @@ def test_models():
 
     folder_list = ['anchor_subd2']
     folder_list = ['odd_hiddenLayer2_dout64','odd_hiddenLayer4_dout3','odd_hiddenLayer4_dout64']
-    folder_list = ['hf_norm_12x34_pos+fea']
+    folder_list = ['hf_norm_12_pos+fea_trainloss']
     for folder in folder_list:
         print('current net is: ', folder)
 
@@ -40,14 +116,14 @@ def test_models():
                 params = json.load(f)
         # params['epochs'] =6000
         params['numSubd'] = 3
-        net_path = os.path.join(work_dir, folder, 'netparams_%d.dat'% params['epochs'])
+        net_path = os.path.join(work_dir, folder, 'netparams_e2000_t300_v30.dat')
         # initialize network
         net = SubdNet(params)
         net = net.to(params['device'])
         net.load_state_dict(torch.load(net_path, map_location=torch.device(params["device"])))
         net.eval()
 
-        output_root_dir = os.path.join(work_dir, folder, 'test')
+        output_root_dir = os.path.join(work_dir, folder, 'test_e2000')
 
         mesh_root_dir = '/work/Users/zhuzhiwei/dataset/mesh/free3d-animal/animal-3kk/'
         mesh_list = ['Camel_f1000_ns3_nm50', 'Dog_f1000_ns3_nm50', 'Lion_f1000_ns3_nm50', 'Panda_f1000_ns3_nm50']
@@ -314,5 +390,25 @@ def bat_test():
         tgp.writeOBJ(out_path, x, T.meshes[mIdx][ii].F.to('cpu'))
 
 if __name__ == '__main__':
-    test_models()
+    os.environ['CUDA_VISIBLE_DEVICES'] = '5'
+    test_models_midx()
+
+    # mesh_root_dir = '/work/Users/zhuzhiwei/dataset/mesh/10k_sf_train60_subdiv_fn1000/'
+    # # 将mesh_root_dir中的文件夹名字作为mesh_list
+    #
+    # mesh_list = os.listdir(mesh_root_dir)
+    # delete_list = []
+    #
+    # for mesh_name in mesh_list:
+    #     max_num = 10
+    #     for i in range(1, max_num, 10):
+    #         mesh_dir = os.path.join(mesh_root_dir, mesh_name, 'subd0')
+    #         meshPath = os.path.join(mesh_dir, str(i).zfill(len(str(max_num)))+'.obj')
+    #         if os.path.getsize(meshPath) < 1024:
+    #             # 1024 bytes
+    #            delete_list.append(os.path.join(mesh_root_dir, mesh_name))
+    #            os.system('rm -rf '+os.path.join(mesh_root_dir, mesh_name))
+    #            continue
+    # print(delete_list)
+
 

@@ -210,9 +210,8 @@ def main(args):
             bestLoss = trainErr
             torch.save(net.state_dict(), os.path.join(params['output_path'], NETPARAMS))
 
-        print("epoch %d, train loss %.6e, valid loss %.6e, remain time: %s s" % (
-        pretrain_epoch + epoch, train_loss_m, valid_loss_m,
-        int(round((params['epochs'] - epoch) * (time.time() - ts)))))
+        print("epoch %d, train loss %.6e, valid loss %.6e, cost time: %.2f s" % (
+            pretrain_epoch + epoch, train_loss_m, valid_loss_m, (time.time() - ts)))
 
         # save loss history
         writer.add_scalar('train_loss', train_loss_m, pretrain_epoch + epoch)

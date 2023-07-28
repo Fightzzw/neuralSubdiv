@@ -22,7 +22,7 @@ def normalizeUnitCube(V):
 
 def my_normalizeUnitCube(V):
     '''
-    NORMALIZEUNITCUBE normalize a shape to the bounding box by 0.5,0.5,0.5
+    NORMALIZEUNITCUBE normalize a shape to the bounding box by 1.0,1.0,1.0
 
     Inputs:
         V (|V|,3) torch array of vertex positions

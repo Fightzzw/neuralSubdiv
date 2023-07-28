@@ -153,8 +153,11 @@ def main(args):
         writer.add_scalar('valid_loss', valid_loss_m, pretrain_epoch + epoch)
 
         # save the best model
-        if validErr < bestLoss:
-            bestLoss = validErr
+        if trainErr < bestLoss:
+            bestLoss = trainErr
+            # 每500epoch共享一个netparams name
+            epoch_i = (pretrain_epoch + epoch) // 500 + 1
+            NETPARAMS = 'netparams_e%d_t%d_v%d.dat' % (epoch_i * 500, S.nM, T.nM)
             torch.save(net.state_dict(), os.path.join(params['output_path'], NETPARAMS))
 
         print("epoch %d, train loss %.6e, valid loss %.6e, remain time: %s s" % (

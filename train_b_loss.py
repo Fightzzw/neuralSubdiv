@@ -7,8 +7,44 @@ import argparse
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.tensorboard import SummaryWriter
 from include import *
-from models.models_b_rnn import *
+from models.models_b import *
+from utils.sample_mesh_points import *
+import torch
+from pytorch3d.structures import Meshes
+from pytorch3d.ops import sample_points_from_meshes
+from pytorch3d.loss import (
+    chamfer_distance,
+    mesh_edge_loss,
+    mesh_laplacian_smoothing,
+    mesh_normal_consistency,
+)
 from zzw_test import test_and_evaluate
+
+def my_chamfer_distance(gt_points, pred_points):
+    """
+    :param gt_points: ground truth points (n, 3)
+    :param pred_points: predicted points (n, 3)
+    :return: chamfer distance
+    """
+    n = gt_points.shape[0]
+    m = pred_points.shape[0]
+    gt_points = gt_points.unsqueeze(0).repeat(m, 1, 1)
+    pred_points = pred_points.unsqueeze(1).repeat(1, n, 1)
+    dist = torch.norm(gt_points - pred_points, dim=2)
+    dist1, _ = torch.min(dist, dim=0)
+    dist2, _ = torch.min(dist, dim=1)
+    cd = torch.mean(dist1) + torch.mean(dist2) / 2
+    return cd ** 2
+
+def my_samplePointsOnMesh(V, F, numSamplePoints):
+    mesh = obj2nvc(V,F)
+    points, _ = sample_on_surface(mesh, numSamplePoints)
+    return points
+
+def samplePointsOnMesh(V, F, numSamplePoints):
+    mesh = Meshes([V], [F])
+    points = sample_points_from_meshes(mesh, numSamplePoints)
+    return points
 
 def filter_mesh_before_train(S, T, net, params, lossFunc):
     """
@@ -125,6 +161,7 @@ def main(args):
         params['Dout'] = args.dout
     params['memory_compact'] = args.memory_compact
     params['pretrain_net'] = args.pretrain_net
+
     print(params)
     # make dir and cp hyperparameters.json
     with open(os.path.join(params['output_path'], 'hyperparameters.json'), 'w') as f:
@@ -206,6 +243,24 @@ def main(args):
     f_train_loss = open(os.path.join(params['output_path'], train_loss_txt), 'a')
     f_valid_loss = open(os.path.join(params['output_path'], valid_loss_txt), 'a')
 
+    # 先采样gt_points
+    # S_gt_points = []
+    # for mIdx in range(S.nM):
+    #     print('Sampling gt_points on S, mIdx: ', mIdx)
+    #     S.toDeviceId(mIdx, params["device"])
+    #     Vt = S.meshes[mIdx][params["numSubd"]].V.to(params['device'])
+    #     Ft = S.meshes[mIdx][params["numSubd"]].F.to(params['device'])
+    #     Vt_sample = samplePointsOnMesh(Vt, Ft, Vt.size(0))
+    #     S_gt_points.append(Vt_sample)
+    # T_gt_points = []
+    # for mIdx in range(T.nM):
+    #     print('Sampling gt_points on T, mIdx: ', mIdx)
+    #     T.toDeviceId(mIdx, params["device"])
+    #     Vt = T.meshes[mIdx][params["numSubd"]].V.to(params['device'])
+    #     Ft = T.meshes[mIdx][params["numSubd"]].F.to(params['device'])
+    #     Vt_sample = samplePointsOnMesh(Vt, Ft, Vt.size(0))
+    #     T_gt_points.append(Vt_sample)
+
     # batch_size = params['batch_size']
     batch_size = params['batch_size']
     train_batch_num = int(np.ceil(S.nM / batch_size))
@@ -217,6 +272,8 @@ def main(args):
     valid_mIdx_list = np.arange(T.nM)
     np.random.shuffle(valid_mIdx_list)
     valid_batch_mIdx_lists = np.array_split(valid_mIdx_list, valid_batch_num)
+
+
 
     for epoch in range(params['epochs']):
         trainErr = 0.0
@@ -234,6 +291,16 @@ def main(args):
                 outputs = net(x, S.hfList[mIdx], S.poolMats[mIdx], S.dofs[mIdx])
                 # target mesh
                 Vt = S.meshes[mIdx][params["numSubd"]].V.to(params['device'])
+                Ft = S.meshes[mIdx][params["numSubd"]].F.to(params['device'])
+                Vp = outputs[-1]
+                # calculate chamfer distance
+                # sample points on the target mesh
+                Vt_sample = samplePointsOnMesh(Vt, Ft, Vt.size(0))
+                # sample points on the predicted mesh
+                Vp_sample = samplePointsOnMesh(Vp, Ft, Vt.size(0))
+                chamfer_loss = chamfer_distance(Vt_sample, Vp_sample)
+
+                batch_loss += chamfer_loss[0].to(params['device'])
 
                 # compute loss function
                 loss = 0.0
@@ -241,6 +308,7 @@ def main(args):
                 for ii in range(params["numSubd"] + 1):
                     nV = outputs[ii].size(0)
                     loss += lossFunc(outputs[ii], Vt[:nV, :])
+                # print('batch_idx: ', batch_idx, ' mIdx: ', mIdx, ' chamfer_loss: ', chamfer_loss, ' loss: ', loss)
                 batch_loss += loss
                 # 训练结束，将当前mesh从gpu转到cpu，但这样可能会导致训练减速
                 if params['memory_compact']:
@@ -255,31 +323,42 @@ def main(args):
 
         # validation
         validErr = 0.0
-        for batch_idx in range(valid_batch_num):
-            torch.cuda.empty_cache()
-
-            batch_loss = torch.tensor(0.0, requires_grad=True).to(params['device'])
-            for mIdx in valid_batch_mIdx_lists[batch_idx]:
-                # forward pass
-                T.toDeviceId(mIdx, params["device"])
-                x = T.getInputData(mIdx)
-                outputs = net(x, T.hfList[mIdx], T.poolMats[mIdx], T.dofs[mIdx])
-                # target mesh
-                Vt = T.meshes[mIdx][params["numSubd"]].V.to(params['device'])
-
-                # compute loss function
-                loss = 0.0
-                # loss = torch.tensor(0.0, requires_grad=True).to(params['device'])
+        if not args.valid_skip:
+            for batch_idx in range(valid_batch_num):
                 torch.cuda.empty_cache()
-                for ii in range(params["numSubd"] + 1):
-                    nV = outputs[ii].size(0)
-                    loss += lossFunc(outputs[ii], Vt[:nV, :])
-                batch_loss += loss
-                # 训练结束，将当前mesh从gpu转到cpu，但这样可能会导致训练减速
-                if params['memory_compact']:
-                    T.toDeviceId(mIdx, 'cpu')
-            batch_loss /= len(valid_batch_mIdx_lists[batch_idx])
-            validErr += batch_loss.cpu().detach().numpy()
+
+                batch_loss = torch.tensor(0.0, requires_grad=True).to(params['device'])
+                for mIdx in valid_batch_mIdx_lists[batch_idx]:
+                    # forward pass
+                    T.toDeviceId(mIdx, params["device"])
+                    x = T.getInputData(mIdx)
+                    outputs = net(x, T.hfList[mIdx], T.poolMats[mIdx], T.dofs[mIdx])
+                    # target mesh
+                    Vt = T.meshes[mIdx][params["numSubd"]].V.to(params['device'])
+                    Ft = T.meshes[mIdx][params["numSubd"]].F.to(params['device'])
+                    Vp = outputs[-1]
+
+                    # calculate chamfer distance
+                    # sample points on the target mesh
+                    Vt_sample = samplePointsOnMesh(Vt, Ft, Vt.size(0))
+                    # sample points on the predicted mesh
+                    Vp_sample = samplePointsOnMesh(Vp, Ft, Vt.size(0))
+                    chamfer_loss = chamfer_distance(Vt_sample, Vp_sample)
+                    batch_loss += chamfer_loss[0].to(params['device'])
+
+                    # compute loss function
+                    loss = 0.0
+                    # loss = torch.tensor(0.0, requires_grad=True).to(params['device'])
+                    torch.cuda.empty_cache()
+                    for ii in range(params["numSubd"] + 1):
+                        nV = outputs[ii].size(0)
+                        loss += lossFunc(outputs[ii], Vt[:nV, :])
+                    batch_loss += loss
+                    # 训练结束，将当前mesh从gpu转到cpu，但这样可能会导致训练减速
+                    if params['memory_compact']:
+                        T.toDeviceId(mIdx, 'cpu')
+                batch_loss /= len(valid_batch_mIdx_lists[batch_idx])
+                validErr += batch_loss.cpu().detach().numpy()
 
         valid_loss_m = validErr / valid_batch_num
         if trainErr < bestLoss:
@@ -337,7 +416,6 @@ def main(args):
     test_and_evaluate(out_test_dir, net, T, params['numSubd'])
 
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-g', '--gpu', type=str, default='7', help='GPU list to use, e.g. 0,1,2,3')
@@ -352,7 +430,11 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--batch_size', type=int, default=None, help='batch size in training')
     parser.add_argument('-m', '--memory_compact', type=bool, default=False,
                         help='Input anything will activate memory compact mode, but speed will be slower. '
-                             'Do not input, default is False')
+                             'Not input and not activate, default is False')
+    parser.add_argument('-v', '--valid_skip', type=bool, default=False,
+                        help='Input anything will activate skip validation mode, speed will be faster. '
+                             'Not input and not activate, default is False')
+
     args = parser.parse_args()
 
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu

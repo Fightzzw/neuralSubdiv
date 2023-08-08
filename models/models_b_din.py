@@ -40,7 +40,7 @@ class SubdNet(torch.nn.Module):
         Dout = params['Dout']  # output dimension
 
         # initialize three MLPs
-        self.net_init = MLP(4 * Din + 2, params['h_initNet'], Dout)  # 4 * Din - 3 + 5
+        self.net_init = MLP(4 * Din + 6, params['h_initNet'], Dout)  # 4 * Din - 3 + 5 + 4
         self.net_edge = MLP(4 * Dout -3, params['h_edgeNet'], Dout)
         self.net_vertex = MLP(4 * Dout -3, params['h_vertexNet'], Dout)
 
@@ -105,14 +105,57 @@ class SubdNet(torch.nn.Module):
             hf_feature = torch.bmm(hf_feature, torch.transpose(localFrames, 1, 2))
         hf_normalize = torch.cat((hf_pos, hf_feature), dim=2)
 
+        return hf_normalize, localFrames
+
+    def v2hf(self, fv, hfIdx):
+        '''
+        V2HF re-index the vertex feature (fv) to half flaps features (hf), given half flap index list (hfIdx)
+        '''
+        # get half flap indices
+        fv0 = fv[hfIdx[:, 0], :].unsqueeze(1)  # 2*nE x 1 x Dout
+        fv1 = fv[hfIdx[:, 1], :].unsqueeze(1)  # 2*nE x 1 x Dout
+        fv2 = fv[hfIdx[:, 2], :].unsqueeze(1)  # 2*nE x 1 x Dout
+        fv3 = fv[hfIdx[:, 3], :].unsqueeze(1)  # 2*nE x 1 x Dout
+        hf = torch.cat((fv0, fv1, fv2, fv3), dim=1)  # 2*nE x 4 x Dout
+
+        # normalize the half flap features
+        hf_normalize, localFrames = self.flapNormalization(hf)
         hf_normalize = hf_normalize.view(hf_normalize.size(0), -1)
         hf_normalize = hf_normalize[:, 3:]  # remove the first 3 components as they are always (0,0,0)
 
-        if normalizeFeature:
+        return hf_normalize, localFrames
 
+    def v2hf_initNet(self, fv, hfIdx, poolMat):
+        '''
+        V2HF_INITNET re-index the vertex feature (fv) to half flaps features (hf), given half flap index list (hfIdx). This is for the initialization network only
+        '''
+        # get half flap indices
+        fv0 = fv[hfIdx[:, 0], :].unsqueeze(1)  # 2*nE x 1 x Dout
+        fv1 = fv[hfIdx[:, 1], :].unsqueeze(1)  # 2*nE x 1 x Dout
+        fv2 = fv[hfIdx[:, 2], :].unsqueeze(1)  # 2*nE x 1 x Dout
+        fv3 = fv[hfIdx[:, 3], :].unsqueeze(1)  # 2*nE x 1 x Dout
+        hf = torch.cat((fv0, fv1, fv2, fv3), dim=1)  # 2*nE x 4 x Dout
+
+        # normalize the half flap features (including the vector of differential coordinates see figure 18)
+        hf_normalize, localFrames = self.flapNormalization(hf, True)
+
+        hf_normalize = hf_normalize.view(hf_normalize.size(0), -1)
+        hf_normalize = hf_normalize[:, 3:]  # remove the first 3 components as they are always (0,0,0)
+
+        newFeature =True
+
+        if newFeature:
+            V = hf[:, :, :3]  # half flap vertex positison
             # zzw add new features
             # 二面角，两个内角，两个底边/高，其中角度用余弦值表示
             # TODO : 判断二面角是a还是（2pi-a)
+            F = torch.tensor([[0, 1, 2], [1, 0, 3]])  # half flap face list
+            # 两个面的法向量
+            vec1 = V[:, F[:, 1], :] - V[:, F[:, 0], :]
+            vec2 = V[:, F[:, 2], :] - V[:, F[:, 0], :]
+            FN = torch.cross(vec1, vec2)  # nF x 2 x 3
+            FNnorm = torch.norm(FN, dim=2)
+            FN = FN / FNnorm.unsqueeze(2)
             dihedral_angle = torch.sum(FN[:, 0, :] * FN[:, 1, :], dim=1)  # 二面角，因为FN已经归一化了，所以这里直接相乘
             # 两个底边/高
             vec_02 = V[:, 2, :] - V[:, 0, :]
@@ -133,45 +176,31 @@ class SubdNet(torch.nn.Module):
             angle_2 = torch.sum(vec_20 * vec_21, dim=1) / (torch.norm(vec_20, dim=1) * torch.norm(vec_21, dim=1))
             angle_3 = torch.sum(vec_30 * vec_31, dim=1) / (torch.norm(vec_30, dim=1) * torch.norm(vec_31, dim=1))
 
+            # half flap 4个顶点的高斯曲率
+            # 每个顶点的高斯曲率分别计算
+            angel_201 = torch.arccos(
+                torch.sum(vec_02 * vec_01, dim=1) / (torch.norm(vec_02, dim=1) * torch.norm(vec_01, dim=1)))
+            angel_301 = torch.arccos(
+                torch.sum(vec_03 * vec_01, dim=1) / (torch.norm(vec_03, dim=1) * torch.norm(vec_01, dim=1)))
+            hf_angle = (angel_201 + angel_301).unsqueeze(1)
+            hf_area = torch.norm(vec_01x02, dim=1) + torch.norm(vec_01x03, dim=1)
+            hf_area = hf_area.unsqueeze(1)
+
+            # 顶点的高斯曲率
+            aver_hf_angle = torch.spmm(poolMat, hf_angle)/2
+            aver_hf_area = torch.spmm(poolMat, hf_area)/2
+            v_gaussian_curvature = (2*np.pi - aver_hf_angle) / aver_hf_area
+            hf_gaussian_curvature = torch.cat((v_gaussian_curvature[hfIdx[:, 0], :],
+                                               v_gaussian_curvature[hfIdx[:, 1], :],
+                                               v_gaussian_curvature[hfIdx[:, 2], :],
+                                               v_gaussian_curvature[hfIdx[:, 3], :]), dim=1)
 
             mesh_cnn_feat = torch.cat((dihedral_angle.unsqueeze(1),
                                        angle_2.unsqueeze(1),
                                        angle_3.unsqueeze(1),
                                        edge_ratio_2.unsqueeze(1),
                                        edge_ratio_3.unsqueeze(1)), dim=1)
-            hf_normalize = torch.cat((hf_normalize, mesh_cnn_feat), dim=1)
-
-        return hf_normalize, localFrames
-
-    def v2hf(self, fv, hfIdx):
-        '''
-        V2HF re-index the vertex feature (fv) to half flaps features (hf), given half flap index list (hfIdx)
-        '''
-        # get half flap indices
-        fv0 = fv[hfIdx[:, 0], :].unsqueeze(1)  # 2*nE x 1 x Dout
-        fv1 = fv[hfIdx[:, 1], :].unsqueeze(1)  # 2*nE x 1 x Dout
-        fv2 = fv[hfIdx[:, 2], :].unsqueeze(1)  # 2*nE x 1 x Dout
-        fv3 = fv[hfIdx[:, 3], :].unsqueeze(1)  # 2*nE x 1 x Dout
-        hf = torch.cat((fv0, fv1, fv2, fv3), dim=1)  # 2*nE x 4 x Dout
-
-        # normalize the half flap features
-        hf_normalize, localFrames = self.flapNormalization(hf)
-
-        return hf_normalize, localFrames
-
-    def v2hf_initNet(self, fv, hfIdx):
-        '''
-        V2HF_INITNET re-index the vertex feature (fv) to half flaps features (hf), given half flap index list (hfIdx). This is for the initialization network only
-        '''
-        # get half flap indices
-        fv0 = fv[hfIdx[:, 0], :].unsqueeze(1)  # 2*nE x 1 x Dout
-        fv1 = fv[hfIdx[:, 1], :].unsqueeze(1)  # 2*nE x 1 x Dout
-        fv2 = fv[hfIdx[:, 2], :].unsqueeze(1)  # 2*nE x 1 x Dout
-        fv3 = fv[hfIdx[:, 3], :].unsqueeze(1)  # 2*nE x 1 x Dout
-        hf = torch.cat((fv0, fv1, fv2, fv3), dim=1)  # 2*nE x 4 x Dout
-
-        # normalize the half flap features (including the vector of differential coordinates see figure 18)
-        hf_normalize, localFrames = self.flapNormalization(hf, True)
+            hf_normalize = torch.cat((hf_normalize, mesh_cnn_feat, hf_gaussian_curvature), dim=1)
 
         return hf_normalize, localFrames
 
@@ -222,7 +251,7 @@ class SubdNet(torch.nn.Module):
 
         # initialization step (figure 17 left)
         fv_input_pos = fv[:, :3]
-        fhf, LFs = self.v2hf_initNet(fv, HF[0])
+        fhf, LFs = self.v2hf_initNet(fv, HF[0], poolMat[0])
         fhf = self.net_init(fhf)
         fhf = self.local2Global(fhf, LFs)
         fv = self.oneRingPool(fhf, poolMat[0], DOF[0])

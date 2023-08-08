@@ -1,6 +1,9 @@
 import sys
 sys.path.append('../')
 from include import *
+import trimesh
+import numpy as np
+
 
 
 class MLP(torch.nn.Module):
@@ -40,11 +43,116 @@ class SubdNet(torch.nn.Module):
 
         # initialize three MLPs
         self.net_init = MLP(4 * Din - 3, params['h_initNet'], Dout)
-        # self.net_edge = MLP(4 * Dout - 3, params['h_edgeNet'], Dout)
-        self.net_vertex = MLP(4 * Dout - 3, params['h_vertexNet'], Dout)
+        self.net_edge = MLP(4 * Dout - 3, params['h_edgeNet'], Dout)
+        self.net_vertex = MLP(8 * Dout - 3, params['h_vertexNet'], Dout)
 
         self.pool = torch.nn.AvgPool2d((2, 1))  # half-edge pool
         self.numSubd = params["numSubd"]  # number of subdivisions
+
+    def get_min_sphere_radius(self, points):
+        """
+        Get the minimum radius of a circumscribed sphere that encloses all the points
+        """
+        # 外接球半径
+        center, radius = trimesh.nsphere.minimum_nsphere(points)
+        return center, radius
+
+    def get_min_sphere_4points(self, points):
+        """
+        Get the minimum radius of a circumscribed sphere that encloses all the points
+        """
+
+        def minimum_enclosing_sphere_3points(triangle):
+            # Compute the circumcenter of the triangle
+            a, b, c = triangle
+            ab = b - a
+            ac = c - a
+            ab_cross_ac = np.cross(ab, ac)
+            ab_cross_ac_norm_sq = np.dot(ab_cross_ac, ab_cross_ac)
+            if ab_cross_ac_norm_sq == 0:
+                # Points are colinear, return a point and radius of infinity
+                return a, np.inf
+            ab_norm_sq = np.dot(ab, ab)
+            ac_norm_sq = np.dot(ac, ac)
+            circumcenter = a + (np.cross(ab_norm_sq * ac - ac_norm_sq * ab, ab_cross_ac) / (2 * ab_cross_ac_norm_sq))
+            # Calculate the radius of the circumcircle
+            radius = np.linalg.norm(circumcenter - a)
+            # Check if the circumcenter lies inside the triangle
+            if np.all(np.logical_and(circumcenter >= a, circumcenter <= c)):
+                return circumcenter, radius
+            # Otherwise, the minimum enclosing sphere is the circumcircle
+            else:
+                center = np.mean(triangle, axis=0)
+                radius = np.max(np.linalg.norm(triangle - center, axis=1))
+                return center, radius
+
+        def _min_sphere(points, center, radius):
+            if len(points) == 0 or len(center) == 3:
+                if len(center) == 3:
+                    # c1, c2, c3 = center
+                    # return np.array([(c1 + c2 + c3) / 3]), 0
+                    return minimum_enclosing_sphere_3points(center)
+                elif len(center) == 2:
+                    c1, c2 = center
+                    return (c1 + c2) / 2, np.linalg.norm(c1 - c2) / 2
+                elif len(center) == 1:
+                    return center[0], 0
+                else:
+                    return None, 0
+            else:
+                p = points[0]
+                points = points[1:]
+                c, r = _min_sphere(points, center, radius)
+                if c is None or np.linalg.norm(p - c) > r:
+                    center.append(p)
+                    c, r = _min_sphere(points, center, radius)
+                    center.pop()
+                return c, r
+
+        if len(points) < 4:
+            raise ValueError("At least 4 points are required.")
+        np.random.shuffle(points)
+        center, radius = _min_sphere(points, [], 0)
+        return center, radius
+
+    def fit_sphere_4points(self, array, tol=1e-6):
+
+        # Check if the the points are co-linear
+        D12 = array[1] - array[0]
+        D12 = D12 / np.linalg.norm(D12)
+        D13 = array[2] - array[0]
+        D13 = D13 / np.linalg.norm(D13)
+        D14 = array[3] - array[0]
+        D14 = D14 / np.linalg.norm(D14)
+
+        chk1 = np.clip(np.abs(np.dot(D12, D13)), 0., 1.)
+        chk2 = np.clip(np.abs(np.dot(D12, D14)), 0., 1.)
+        if np.arccos(chk1) / np.pi * 180 < tol or np.arccos(chk2) / np.pi * 180 < tol:
+            R = np.inf
+            C = np.full(3, np.nan)
+            return C, R
+
+        # Check if the the points are co-planar
+        n1 = np.linalg.norm(np.cross(D12, D13))
+        n2 = np.linalg.norm(np.cross(D12, D14))
+
+        chk = np.clip(np.abs(np.dot(n1, n2)), 0., 1.)
+        if np.arccos(chk) / np.pi * 180 < tol:
+            R = np.inf
+            C = np.full(3, np.nan)
+            return C, R
+
+        # Centroid of the sphere
+        A = 2 * (array[1:] - np.full(len(array) - 1, array[0]))
+        b = np.sum((np.square(array[1:]) - np.square(np.full(len(array) - 1, array[0]))), axis=1)
+        C = np.transpose(np.linalg.solve(A, b))
+
+        # Radius of the sphere
+        R = np.sqrt(np.sum(np.square(array[0] - C), axis=0))
+        # print("Center:", C)
+        # print("Radius:", R)
+
+        return C, R
 
     def flapNormalization(self, hf, normalizeFeature=False):
         """
@@ -98,11 +206,50 @@ class SubdNet(torch.nn.Module):
         hf_feature = hf[:, :, 3:]  # half flap features
         hf_pos = hf_pos - V[:, 0, :].unsqueeze(1)  # translate
         hf_pos = torch.bmm(hf_pos, torch.transpose(localFrames, 1, 2))
+        # zzw add
+        # 1. use the length of the edge vector12 to normalize the hf_pos
+        # calculate the length of the edge vector12
+        normalize_length = torch.norm(hf_pos[:, 1, :], dim=1).unsqueeze(1).unsqueeze(1)
+
+        # 2. normalize_length = len_edge12 * len_edge34
+        # len_edge12 = torch.norm(hf_pos[:, 1, :], dim=1).unsqueeze(1).unsqueeze(1)
+        # len_edge34 = torch.norm(hf_pos[:, 3, :] - hf_pos[:, 2, :], dim=1).unsqueeze(1).unsqueeze(1)
+        # normalize_length = len_edge12 * len_edge34
+        # # 对normalize_length开根号
+        # normalize_length = torch.sqrt(normalize_length)
+
+        # 3. normalize_length = radius of the circumscribed sphere of half flap
+        # calculate the circumscribed sphere of the half flap
+        # normalize_length = torch.ones(hf_pos.size(0))
+        # max_normazlize_length = 100000
+        # for i in range(hf_pos.size(0)):
+        #     _, radius = self.fit_sphere_4points(hf_pos[i, :, :].cpu().detach().numpy())
+        #     if radius == np.inf:
+        #         # print('%d/%d' % (i, hf_pos.size(0)))
+        #         # print(hf_pos[i, :, :].cpu().detach().numpy())
+        #         # print('radius is inf, we set it to max_normazlize_length = %d' % max_normazlize_length)
+        #         radius = max_normazlize_length
+        #     normalize_length[i] = torch.from_numpy(np.array(radius))
+        #
+        # normalize_length = normalize_length.unsqueeze(1).unsqueeze(1).cuda()
+
+
+        # 4. normalize_length = radius of the min sphere of half flap
+        # normalize_length = torch.ones(hf_pos.size(0))
+        # for i in range(hf_pos.size(0)):
+        #     _, radius = self.get_min_sphere_4points(hf_pos[i, :, :].cpu().detach().numpy())
+        #     # print('%d/%d, radius: ' % (i, hf_pos.size(0)), radius)
+        #     normalize_length[i] = torch.from_numpy(np.array(radius))
+        # normalize_length = normalize_length.unsqueeze(1).unsqueeze(1).cuda()
+
+        hf_pos = hf_pos / normalize_length
+
         if normalizeFeature:  # if also normalize the feature using local frames
             assert (hf_feature.size(2) == 3)
             hf_feature = torch.bmm(hf_feature, torch.transpose(localFrames, 1, 2))
+            hf_feature = hf_feature / normalize_length
         hf_normalize = torch.cat((hf_pos, hf_feature), dim=2)
-        return hf_normalize, localFrames
+        return hf_normalize, localFrames, normalize_length
 
     def v2hf(self, fv, hfIdx):
         '''
@@ -116,10 +263,10 @@ class SubdNet(torch.nn.Module):
         hf = torch.cat((fv0, fv1, fv2, fv3), dim=1)  # 2*nE x 4 x Dout
 
         # normalize the half flap features
-        hf_normalize, localFrames = self.flapNormalization(hf)
+        hf_normalize, localFrames, normalize_length = self.flapNormalization(hf)
         hf_normalize = hf_normalize.view(hf_normalize.size(0), -1)
         hf_normalize = hf_normalize[:, 3:]  # remove the first 3 components as they are always (0,0,0)
-        return hf_normalize, localFrames
+        return hf_normalize, localFrames, normalize_length
 
     def v2hf_initNet(self, fv, hfIdx):
         '''
@@ -133,16 +280,16 @@ class SubdNet(torch.nn.Module):
         hf = torch.cat((fv0, fv1, fv2, fv3), dim=1)  # 2*nE x 4 x Dout
 
         # normalize the half flap features (including the vector of differential coordinates see figure 18)
-        hf_normalize, localFrames = self.flapNormalization(hf, True)
+        hf_normalize, localFrames, normalize_length = self.flapNormalization(hf, True)
         hf_normalize = hf_normalize.view(hf_normalize.size(0), -1)
         hf_normalize = hf_normalize[:, 3:]  # remove the first 3 components as they are always (0,0,0)
-        return hf_normalize, localFrames
+        return hf_normalize, localFrames, normalize_length
 
-    def local2Global(self, hf_local, LFs):
+    def local2Global(self, hf_local, LFs, normalize_length):
         '''
         LOCAL2GLOBAL turns position features (the first three elements) described in the local frame of an half-flap to world coordinates
         '''
-        hf_local_pos = hf_local[:, :3]  # get the vertex position features
+        hf_local_pos = hf_local[:, :3] * normalize_length.squeeze(1)  # get the vertex position features
         hf_feature = hf_local[:, 3:]  # get the high-dim features
         c0 = hf_local_pos[:, 0].unsqueeze(1)
         c1 = hf_local_pos[:, 1].unsqueeze(1)
@@ -177,7 +324,6 @@ class SubdNet(torch.nn.Module):
         Ve = (Ve0 + Ve1) / 2.0
         Ve = self.halfEdgePool(Ve)
         return Ve
-
     def edgeMidPointFeature(self, fv, hfIdx):
         '''
         get the mid point position of each edge
@@ -188,115 +334,19 @@ class SubdNet(torch.nn.Module):
         fe = self.halfEdgePool(fe)
         return fe
 
-    def getLaplaceCoordinate(self, V, HF, poolMat, dof):
-        """
-        get the vectors of the differential coordinates (see Fig.18)
-        Inputs:
-            hfList: half flap list (see self.getHalfFlap)
-            poolMats: vertex one-ring pooling matrix (see self.getFlapPool)
-            dofs: degrees of freedom per vertex (see self.getFlapPool)
-        """
-        dV_he = V[HF[:, 0], :] - V[HF[:, 1], :]
-        dV_v = torch.spmm(poolMat, dV_he)
-        dV_v /= dof.unsqueeze(1)
-        LC = dV_v
-        return LC
-
-    def forward_only_initnet(self, fv, HF, poolMat, DOF):
+    def forward(self, fv,  HF, poolMat, DOF):
         outputs = []
 
         # initialization step (figure 17 left)
         fv_input_pos = fv[:, :3]
-        fhf, LFs = self.v2hf_initNet(fv, HF[0])
+        fhf, LFs, normalize_length = self.v2hf_initNet(fv, HF[0])
         fhf = self.net_init(fhf)
-        fhf = self.local2Global(fhf, LFs)
+        fhf = self.local2Global(fhf, LFs, normalize_length)
         fv = self.oneRingPool(fhf, poolMat[0], DOF[0])
         fv[:, :3] += fv_input_pos
 
         outputs.append(fv[:, :3])
-
-        # subdivision starts
-        for ii in range(self.numSubd):
-            # 1, compute the mid-point of each edge
-            # 2, vertex step (figure 17 middle)
-            Ve = self.edgeMidPoint(fv, HF[ii])  # compute edge mid point
-            fv_input_pos = torch.cat((fv[:, :3], Ve), dim=0)  # nV_next x 3
-            # calculate laplace coordinate
-            LC = self.getLaplaceCoordinate(fv_input_pos,  HF[ii+1], poolMat[ii+1], DOF[ii+1])
-
-            fv = torch.cat((fv_input_pos, LC), dim=1)  # nV_next x Din
-
-            # initialization step, low dimensional features to high dimensional features
-            fv_input_pos = fv[:, :3]
-            fhf, LFs = self.v2hf_initNet(fv, HF[ii + 1])  #
-            fhf = self.net_init(fhf)  # mlp,低维到高维
-            fhf = self.local2Global(fhf, LFs)
-            fv = self.oneRingPool(fhf, poolMat[ii+1], DOF[ii+1])
-            fv[:, :3] += fv_input_pos
-
-            outputs.append(fv[:, :3])
-
-        return outputs
-
-    def forward_init_vertex(self, fv, HF, poolMat, DOF):
-        outputs = []
-
-        # initialization step (figure 17 left)
-        # fv_input_pos = fv[:, :3]
-        # fhf, LFs = self.v2hf_initNet(fv, HF[0])
-        # fhf = self.net_init(fhf)
-        # fhf = self.local2Global(fhf, LFs)
-        # fv = self.oneRingPool(fhf, poolMat[0], DOF[0])
-        # fv[:, :3] += fv_input_pos
-        # 对subd0的顶点进行了微调
-        outputs.append(fv[:, :3])
-
-        # subdivision starts
-        for ii in range(self.numSubd):
-            # 1, compute the mid-point of each edge
-            # 2, vertex step (figure 17 middle)
-            Ve = self.edgeMidPoint(fv, HF[ii])  # compute edge mid point
-            fv_input_pos = torch.cat((fv[:, :3], Ve), dim=0)  # nV_next x 3
-            # calculate laplace coordinate
-            LC = self.getLaplaceCoordinate(fv_input_pos,  HF[ii+1], poolMat[ii+1], DOF[ii+1])
-
-            fv = torch.cat((fv_input_pos, LC), dim=1)  # nV_next x Din
-
-            # initialization step, low dimensional features to high dimensional features
-            fv_input_pos = fv[:, :3]
-            fhf, LFs = self.v2hf_initNet(fv, HF[ii + 1])  #
-            fhf = self.net_init(fhf)  # mlp,低维到高维
-            fhf = self.local2Global(fhf, LFs)
-            fv = self.oneRingPool(fhf, poolMat[ii+1], DOF[ii+1])
-            fv[:, :3] += fv_input_pos
-
-            # 不注释的话，相当于要求init_net的输出是一个坐标残差,缩小了其取值范围，不过是约束好？还是随机的好？不好说
-            # 20230704， 趋向于约束，实验表明不约束loss发散，约束能收敛更快
-
-            # vertex step (figure 17 middle)
-            prevPos = fv[:, :3]
-            fhf, LFs = self.v2hf(fv, HF[ii + 1])  # 2*nE x 4*Dout
-            fhf = self.net_vertex(fhf)
-            fhf = self.local2Global(fhf, LFs)
-            fv = self.oneRingPool(fhf, poolMat[ii + 1], DOF[ii + 1])
-            fv[:, :3] += prevPos
-
-            outputs.append(fv[:, :3])
-
-        return outputs
-
-    def forward_midfeature(self, fv, HF, poolMat, DOF):
-        outputs = []
-
-        # initialization step (figure 17 left)
-        fv_input_pos = fv[:, :3]
-        fhf, LFs = self.v2hf_initNet(fv, HF[0])
-        fhf = self.net_init(fhf)
-        fhf = self.local2Global(fhf, LFs)
-        fv = self.oneRingPool(fhf, poolMat[0], DOF[0])
-        fv[:, :3] += fv_input_pos
-
-        outputs.append(fv[:, :3])
+        rnn_next_fv = fv
 
         # subdivision starts
         for ii in range(self.numSubd):
@@ -306,39 +356,18 @@ class SubdNet(torch.nn.Module):
             fv = torch.cat((fv, fe), dim=0)  # nV_next x Dout
             fv_input_pos = fv[:, :3]
 
-            fhf, LFs = self.v2hf(fv, HF[ii + 1])  # 2*nE x 4*Dout
+            rnn_fe = self.edgeMidPointFeature(rnn_next_fv, HF[ii])  # compute edge mid point
+            rnn_fv = torch.cat((rnn_next_fv, rnn_fe), dim=0)  # nV_next x Dout
+
+            rnn_next_fv = fv
+            fv = torch.cat((fv, rnn_fv), dim=1)  # nV_next x 2*Dout
+
+            fhf, LFs, normalize_length = self.v2hf(fv, HF[ii + 1])  # 2*nE x 4*Dout
+            # 这里将hf的4个顶点的特征拼接起来，并且将其转换到了局部坐标系下，对顶点特征的前三维进行处理
+            # rnn_fv的前三维的物理意义本来也是坐标，但是这里将其当做特征处理了，所以这里的处理需要改进？
+
             fhf = self.net_vertex(fhf)
-            fhf = self.local2Global(fhf, LFs)
-            fv = self.oneRingPool(fhf, poolMat[ii + 1], DOF[ii + 1])
-            fv[:, :3] += fv_input_pos
-
-            outputs.append(fv[:, :3])
-
-        return outputs
-    def forward(self, fv, HF, poolMat, DOF):
-        outputs = []
-
-        # initialization step (figure 17 left)
-        fv_input_pos = fv[:, :3]
-        fhf, LFs = self.v2hf_initNet(fv, HF[0])
-        fhf = self.net_init(fhf)
-        fhf = self.local2Global(fhf, LFs)
-        fv = self.oneRingPool(fhf, poolMat[0], DOF[0])
-        fv[:, :3] += fv_input_pos
-
-        outputs.append(fv[:, :3])
-
-        # subdivision starts
-        for ii in range(self.numSubd):
-            # 1, compute the mid-point of each edge, position and feature
-            # 2, vertex step (figure 17 middle)
-            fe = self.edgeMidPointFeature(fv, HF[ii])  # compute edge mid point
-            fv = torch.cat((fv, fe), dim=0)  # nV_next x Dout
-            fv_input_pos = fv[:, :3]
-
-            fhf, LFs = self.v2hf(fv, HF[ii + 1])  # 2*nE x 4*Dout
-            fhf = self.net_vertex(fhf)
-            fhf = self.local2Global(fhf, LFs)
+            fhf = self.local2Global(fhf, LFs, normalize_length)
             fv = self.oneRingPool(fhf, poolMat[ii + 1], DOF[ii + 1])
             fv[:, :3] += fv_input_pos
 

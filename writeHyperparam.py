@@ -4,9 +4,9 @@ import os
 def main():
 
     data = {
-        "train_pkl": "./data_PKL/76947_sf_f1000_ns3_nm10.pkl",
-        "valid_pkl": "./data_PKL/76947_sf_f1000_ns3_nm10.pkl",
-        "output_path": './jobs/76947_sf_f1000_ns3_nm10/',
+        "train_pkl": "./data_PKL/203289_sf_f1000_ns3_nm10.pkl",
+        "valid_pkl": "./data_PKL/203289_sf_f1000_ns3_nm10.pkl",
+        "output_path": './jobs/203289_sf_f1000_ns3_nm10/',
         "epochs": 3000,
         "batch_size": 1,
         "lr": 2e-3, 

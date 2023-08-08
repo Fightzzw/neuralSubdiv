@@ -202,120 +202,8 @@ class SubdNet(torch.nn.Module):
         LC = dV_v
         return LC
 
-    def forward_only_initnet(self, fv, HF, poolMat, DOF):
-        outputs = []
 
-        # initialization step (figure 17 left)
-        fv_input_pos = fv[:, :3]
-        fhf, LFs = self.v2hf_initNet(fv, HF[0])
-        fhf = self.net_init(fhf)
-        fhf = self.local2Global(fhf, LFs)
-        fv = self.oneRingPool(fhf, poolMat[0], DOF[0])
-        fv[:, :3] += fv_input_pos
-
-        outputs.append(fv[:, :3])
-
-        # subdivision starts
-        for ii in range(self.numSubd):
-            # 1, compute the mid-point of each edge
-            # 2, vertex step (figure 17 middle)
-            Ve = self.edgeMidPoint(fv, HF[ii])  # compute edge mid point
-            fv_input_pos = torch.cat((fv[:, :3], Ve), dim=0)  # nV_next x 3
-            # calculate laplace coordinate
-            LC = self.getLaplaceCoordinate(fv_input_pos,  HF[ii+1], poolMat[ii+1], DOF[ii+1])
-
-            fv = torch.cat((fv_input_pos, LC), dim=1)  # nV_next x Din
-
-            # initialization step, low dimensional features to high dimensional features
-            fv_input_pos = fv[:, :3]
-            fhf, LFs = self.v2hf_initNet(fv, HF[ii + 1])  #
-            fhf = self.net_init(fhf)  # mlp,低维到高维
-            fhf = self.local2Global(fhf, LFs)
-            fv = self.oneRingPool(fhf, poolMat[ii+1], DOF[ii+1])
-            fv[:, :3] += fv_input_pos
-
-            outputs.append(fv[:, :3])
-
-        return outputs
-
-    def forward_init_vertex(self, fv, HF, poolMat, DOF):
-        outputs = []
-
-        # initialization step (figure 17 left)
-        fv_input_pos = fv[:, :3]
-        fhf, LFs = self.v2hf_initNet(fv, HF[0])
-        fhf = self.net_init(fhf)
-        fhf = self.local2Global(fhf, LFs)
-        fv = self.oneRingPool(fhf, poolMat[0], DOF[0])
-        fv[:, :3] += fv_input_pos
-
-        outputs.append(fv[:, :3])
-
-        # subdivision starts
-        for ii in range(self.numSubd):
-            # 1, compute the mid-point of each edge
-            # 2, vertex step (figure 17 middle)
-            Ve = self.edgeMidPoint(fv, HF[ii])  # compute edge mid point
-            fv_input_pos = torch.cat((fv[:, :3], Ve), dim=0)  # nV_next x 3
-            # calculate laplace coordinate
-            LC = self.getLaplaceCoordinate(fv_input_pos,  HF[ii+1], poolMat[ii+1], DOF[ii+1])
-
-            fv = torch.cat((fv_input_pos, LC), dim=1)  # nV_next x Din
-
-            # initialization step, low dimensional features to high dimensional features
-            fv_input_pos = fv[:, :3]
-            fhf, LFs = self.v2hf_initNet(fv, HF[ii + 1])  #
-            fhf = self.net_init(fhf)  # mlp,低维到高维
-            fhf = self.local2Global(fhf, LFs)
-            fv = self.oneRingPool(fhf, poolMat[ii+1], DOF[ii+1])
-            fv[:, :3] += fv_input_pos
-
-            # 不注释的话，相当于要求init_net的输出是一个坐标残差,缩小了其取值范围，不过是约束好？还是随机的好？不好说
-            # 20230704， 趋向于不约束，实验表明约束能收敛更快
-
-            # vertex step (figure 17 middle)
-            prevPos = fv[:, :3]
-            fhf, LFs = self.v2hf(fv, HF[ii + 1])  # 2*nE x 4*Dout
-            fhf = self.net_vertex(fhf)
-            fhf = self.local2Global(fhf, LFs)
-            fv = self.oneRingPool(fhf, poolMat[ii + 1], DOF[ii + 1])
-            fv[:, :3] += prevPos
-
-            outputs.append(fv[:, :3])
-
-        return outputs
-
-    def forward_midfeature(self, fv, HF, poolMat, DOF):
-        outputs = []
-
-        # initialization step (figure 17 left)
-        fv_input_pos = fv[:, :3]
-        fhf, LFs = self.v2hf_initNet(fv, HF[0])
-        fhf = self.net_init(fhf)
-        fhf = self.local2Global(fhf, LFs)
-        fv = self.oneRingPool(fhf, poolMat[0], DOF[0])
-        fv[:, :3] += fv_input_pos
-
-        outputs.append(fv[:, :3])
-
-        # subdivision starts
-        for ii in range(self.numSubd):
-            # 1, compute the mid-point of each edge, position and feature
-            # 2, vertex step (figure 17 middle)
-            fe = self.edgeMidPointFeature(fv, HF[ii])  # compute edge mid point
-            fv = torch.cat((fv, fe), dim=0)  # nV_next x Dout
-            fv_input_pos = fv[:, :3]
-
-            fhf, LFs = self.v2hf(fv, HF[ii + 1])  # 2*nE x 4*Dout
-            fhf = self.net_vertex(fhf)
-            fhf = self.local2Global(fhf, LFs)
-            fv = self.oneRingPool(fhf, poolMat[ii + 1], DOF[ii + 1])
-            fv[:, :3] += fv_input_pos
-
-            outputs.append(fv[:, :3])
-
-        return outputs
-    def forward(self, fv, HF, poolMat, DOF):
+    def forward_rnn_v0(self, fv, HF, poolMat, DOF):
         outputs = []
 
         # initialization step (figure 17 left)
@@ -345,6 +233,101 @@ class SubdNet(torch.nn.Module):
             fv = torch.cat((fv, rnn_fv), dim=1)  # nV_next x 2*Dout
 
             fhf, LFs = self.v2hf(fv, HF[ii + 1])  # 2*nE x 4*Dout
+            # 这里将hf的4个顶点的特征拼接起来，并且将其转换到了局部坐标系下，对顶点特征的前三维进行处理
+            # rnn_fv的前三维的物理意义本来也是坐标，但是这里将其当做特征处理了，所以这里的处理需要改进？
+
+            fhf = self.net_vertex(fhf)
+            fhf = self.local2Global(fhf, LFs)
+            fv = self.oneRingPool(fhf, poolMat[ii + 1], DOF[ii + 1])
+            fv[:, :3] += fv_input_pos
+
+            outputs.append(fv[:, :3])
+
+        return outputs
+
+    def forward_rnn_ori(self, fv, HF, poolMat, DOF):
+        outputs = []
+
+        # initialization step (figure 17 left)
+        fv_input_pos = fv[:, :3]
+        fhf, LFs = self.v2hf_initNet(fv, HF[0])
+        fhf = self.net_init(fhf)
+        fhf = self.local2Global(fhf, LFs)
+        fv = self.oneRingPool(fhf, poolMat[0], DOF[0])
+        fv[:, :3] += fv_input_pos
+
+        outputs.append(fv[:, :3])
+        rnn_next_fv = fv
+        ori_next_V = fv_input_pos
+
+        # subdivision starts
+        for ii in range(self.numSubd):
+            # 1, compute the mid-point of each edge, position and feature
+            # 2, vertex step (figure 17 middle)
+            # 直连特征
+            fe = self.edgeMidPointFeature(fv, HF[ii])  # compute edge mid point
+            fv = torch.cat((fv, fe), dim=0)  # nV_next x Dout
+            fv_input_pos = fv[:, :3]
+            # rnn特征，上一level中间层跳接特征
+            rnn_fe = self.edgeMidPointFeature(rnn_next_fv, HF[ii])  # compute edge mid point
+            rnn_fv = torch.cat((rnn_next_fv, rnn_fe), dim=0)  # nV_next x Dout
+
+            rnn_next_fv = fv
+            # 原始特征
+            ori_next_Ve = self.edgeMidPoint(ori_next_V, HF[ii])  # compute edge mid point
+            ori_next_V = torch.cat((ori_next_V, ori_next_Ve), dim=0)  # nV_next x Dout
+            ori_next_LC = self.getLaplaceCoordinate(ori_next_V, HF[ii + 1], poolMat[ii + 1], DOF[ii + 1])
+            ori_next_V_input_feat = torch.cat((ori_next_V, ori_next_LC), dim=1)  # nV_next x Din
+            # initialization step, low dimensional features to high dimensional features
+            ori_next_fhf, ori_next_LFs = self.v2hf_initNet(ori_next_V_input_feat, HF[ii + 1])  #
+            ori_next_fhf = self.net_init(ori_next_fhf)  # mlp,低维到高维
+            ori_next_fhf = self.local2Global(ori_next_fhf, ori_next_LFs)
+            ori_next_fv = self.oneRingPool(ori_next_fhf, poolMat[ii + 1], DOF[ii + 1])
+
+            # 将三种特征concat
+            fv = torch.cat((fv, rnn_fv, ori_next_fv), dim=1)  # nV_next x 2*Dout
+
+            fhf, LFs = self.v2hf(fv, HF[ii + 1])  # 2*nE x 4*Dout
+            # 这里将hf的4个顶点的特征拼接起来，并且将其转换到了局部坐标系下，对顶点特征的前三维进行处理
+            # rnn_fv的前三维的物理意义本来也是坐标，但是这里将其当做特征处理了，所以这里的处理需要改进？
+
+            fhf = self.net_vertex(fhf)
+            fhf = self.local2Global(fhf, LFs)
+            fv = self.oneRingPool(fhf, poolMat[ii + 1], DOF[ii + 1])
+            fv[:, :3] += fv_input_pos
+
+            outputs.append(fv[:, :3])
+
+        return outputs
+
+    def forward(self, fv, HF, poolMat, DOF):
+        outputs = []
+
+        # initialization step (figure 17 left)
+        fv_input_pos = fv[:, :3]
+        fhf, LFs = self.v2hf_initNet(fv, HF[0])
+        fhf = self.net_init(fhf)
+        fhf = self.local2Global(fhf, LFs)
+        fv = self.oneRingPool(fhf, poolMat[0], DOF[0])
+        fv[:, :3] += fv_input_pos  # 这里通过loss反传可以约束initial net提取的特征前3维为坐标残差
+
+        outputs.append(fv[:, :3])
+
+        # subdivision starts
+        for ii in range(self.numSubd):
+            # 1, compute the mid-point of each edge, position and feature
+            # 2, vertex step (figure 17 middle)
+
+            fe = self.edgeMidPointFeature(fv, HF[ii])  # compute edge mid point
+            fv = torch.cat((fv, fe), dim=0)  # nV_next x Dout
+            fv_input_pos = fv[:, :3]
+
+            fv = torch.cat((fv, fv), dim=1)  # nV_next x 2*Dout
+
+            fhf, LFs = self.v2hf(fv, HF[ii + 1])  # 2*nE x 4*Dout
+            # 这里将hf的4个顶点的特征拼接起来，并且将其转换到了局部坐标系下，对顶点特征的前三维进行处理
+            # rnn_fv的前三维的物理意义本来也是坐标，但是这里将其当做特征处理了，所以这里的处理需要改进？
+
             fhf = self.net_vertex(fhf)
             fhf = self.local2Global(fhf, LFs)
             fv = self.oneRingPool(fhf, poolMat[ii + 1], DOF[ii + 1])

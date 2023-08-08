@@ -33,6 +33,8 @@ def merge_pkl(i_dir, o_name):
             pkl_list.append(os.path.join(i_dir, path))
     print('len of pkl_list: ', len(pkl_list))
     flag = 1
+    pkl_list = ['76947_sf_f1000_ns3_nm10','70558_sf_f1000_ns3_nm10','203289_sf_f1000_ns3_nm10','1717684_sf_f1000_ns3_nm10']
+    pkl_list = [os.path.join(i_dir, pkl+'.pkl') for pkl in pkl_list]
     for pkl in pkl_list:
         split_meshes = pickle.load(open(pkl, 'rb'))
         if flag:
@@ -126,7 +128,7 @@ def multiple_gen_data_pkl(train_mesh_folders, output_dir, n_processes=1):
 def multiple_gen_data_pkl_v2(train_mesh_dir, output_dir, n_processes=1):
 
     train_mesh_folders_name = os.listdir(train_mesh_dir)
-    train_mesh_folders = [os.path.join(train_mesh_dir, name) for name in train_mesh_folders_name[3:4]]
+    train_mesh_folders = [os.path.join(train_mesh_dir, name) for name in train_mesh_folders_name[30:32]]
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -184,8 +186,9 @@ def process_with_txt():
 
 
 if __name__ == '__main__':
-    multiple_gen_data_pkl_v2('/work/Users/zhuzhiwei/dataset/mesh/10k_sf_train60_subdiv_fn1000/',
-                             '/work/Users/zhuzhiwei/neuralSubdiv-master/data_PKL/10k_sf_train60_fn1000/')
+    merge_pkl('./data_PKL/', '4_sf_f1000_ns3_nm10')
+    # multiple_gen_data_pkl_v2('/work/Users/zhuzhiwei/dataset/mesh/10k_sf_train60_subdiv_fn1000/',
+    #                          '/work/Users/zhuzhiwei/neuralSubdiv-master/data_PKL/10k_sf_train60_fn1000/')
     # main2()
     # obj_list = []
     # root_dir = "/work/Users/zhuzhiwei/dataset/mesh/10k_surface_5550_subdiv_fr0.06/"

@@ -7,7 +7,7 @@ import argparse
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.tensorboard import SummaryWriter
 from include import *
-from models.models_b_rnn import *
+from models.models_b_hfNorm_MfV_rnn import *
 from zzw_test import test_and_evaluate
 
 def filter_mesh_before_train(S, T, net, params, lossFunc):
@@ -335,7 +335,6 @@ def main(args):
     #     tgp.writeOBJ(obj_path, x, T.meshes[mIdx][ii].F.to('cpu'))
     out_test_dir = os.path.join(params['output_path'], 'test_e%d' % total_epoch)
     test_and_evaluate(out_test_dir, net, T, params['numSubd'])
-
 
 
 if __name__ == '__main__':

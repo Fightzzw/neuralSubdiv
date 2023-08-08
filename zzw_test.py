@@ -4,11 +4,13 @@ from __future__ import print_function
 
 import os.path
 
+import torch
+
 from include import *
-from models.models_b_hfNorm import *
+from models.models_b_rnn import *
 NETPARAMS = 'netparams.dat'
 import argparse
-
+import random
 # run the file as "python test.py ./path/to/folder/ ./path/to/testMesh.obj"
 # WARNING
 # - the current code only works for .obj file without boundaries :P
@@ -16,6 +18,149 @@ import argparse
 #   1. testing triangles has aspect ratios that are not in the training data
 #   2. testing triangles has triangle size that are not in the training data
 #   (we include a failure case in the data: the ear of the horse.obj)
+
+def test_and_evaluate(out_test_dir, net, T, numSubd):
+    os.path.exists(out_test_dir) or os.makedirs(out_test_dir)
+
+    def call_mm_compare(refer, test, mode='pcc'):
+        import subprocess
+        mm = '/work/Users/zhuzhiwei/vmesh/externaltools/mpeg-pcc-mmetric/build/Release/bin/mm'
+        cmd = mm + ' compare --inputModelA ' + refer + ' --inputModelB ' + test + ' --mode ' + mode
+        print(cmd)
+        output = subprocess.check_output(cmd, shell=True, encoding='utf-8')
+        return match_mm_log(output)
+
+    def match_mm_log(log):
+        import re
+        # mseF, PSNR(p2point) Mean=64.8143145, 用正则表达式从该语句匹配数字
+        pattern_point = re.compile(r'PSNR\(p2point\) Mean=(\d+.\d+)')
+        p2point = pattern_point.findall(log)
+        print('p2point: ', p2point[0])
+        # mseF, PSNR(p2plane) Mean=64.8143145, 用正则表达式从该语句匹配数字
+        pattern_plane = re.compile(r'PSNR\(p2plane\) Mean=(\d+.\d+)')
+        p2plane = pattern_plane.findall(log)
+        print('p2plane: ', p2plane[0])
+        return p2point[0], p2plane[0]
+
+    metric_file_path = os.path.join(out_test_dir, 'metric.txt')
+    metric_file = open(metric_file_path, 'w')
+    metric_file.write('mIdx\tmse_loss\tp2point\tp2plane\n')
+    mse_loss_list = []
+    p2point_list = []
+    p2plane_list = []
+
+    os.path.exists(out_test_dir) or os.makedirs(out_test_dir)
+    max_num = min(10, T.nM)
+    for mIdx in range(0, max_num):
+        metric_file.write(str(mIdx) + '\t')
+        gt_path = os.path.join(out_test_dir, str(mIdx).zfill(len(str(T.nM))) + '_subd' + str(numSubd) + '_gt.obj')
+        pred_path = os.path.join(out_test_dir, str(mIdx).zfill(len(str(T.nM))) + '_subd' + str(numSubd) + '.obj')
+        x = T.getInputData(mIdx)
+        outputs = net(x, T.hfList[mIdx], T.poolMats[mIdx], T.dofs[mIdx])
+
+        # write unrotated outputs
+        gt_x = T.meshes[mIdx][len(outputs) - 1].V.to('cpu')
+        tgp.writeOBJ(gt_path, gt_x, T.meshes[mIdx][len(outputs) - 1].F.to('cpu'))
+        ii = len(outputs) - 1
+        pred_x = outputs[ii].cpu()
+        tgp.writeOBJ(pred_path, pred_x, T.meshes[mIdx][ii].F.to('cpu'))
+        mse_loss = np.mean(np.square(np.linalg.norm(gt_x.detach().numpy() - pred_x.detach().numpy(), axis=1)))
+        p2point, p2plane = call_mm_compare(gt_path, pred_path)
+
+        mse_loss_list.append(mse_loss)
+        p2point_list.append(float(p2point))
+        p2plane_list.append(float(p2plane))
+
+        metric_file.write(str(mse_loss) + '\t' + str(p2point) + '\t' + str(p2plane) + '\n')
+
+    average_mse_loss = np.mean(mse_loss_list)
+    average_p2point = np.mean(p2point_list)
+    average_p2plane = np.mean(p2plane_list)
+    print('average_mse_loss: ', average_mse_loss)
+    print('average_p2point: ', average_p2point)
+    print('average_p2plane: ', average_p2plane)
+    metric_file.write('average\t' + str(average_mse_loss) + '\t' + str(average_p2point) + '\t'
+                      + str(average_p2plane) + '\n')
+    metric_file.close()
+
+def cross_test():
+    work_dir = '/work/Users/zhuzhiwei/neuralSubdiv-master/jobs/'
+    cross_list = ['76947_sf_f1000_ns3_nm10','70558_sf_f1000_ns3_nm10','203289_sf_f1000_ns3_nm10','1717684_sf_f1000_ns3_nm10']
+    mesh_pkl_dir = '/work/Users/zhuzhiwei/neuralSubdiv-master/data_PKL/'
+    job_list = ['b1_anchor', 'b1_hfNorm', 'b1_oddV_MfV', 'b1_rnn']
+    job_list = ['b1_rnn_dout48', 'b1_rnn_ori']
+
+    for folder in cross_list[2:3]:
+        print('current job folder is: ', folder)
+        for job in job_list:
+            cur_work_dir = os.path.join(work_dir, folder, job)
+            if os.path.exists(os.path.join(cur_work_dir, 'hyperparameters.json')):
+                print('Loading hyperparameters from ' + os.path.join(cur_work_dir, 'hyperparameters.json'))
+                with open(os.path.join(cur_work_dir, 'hyperparameters.json'), 'r') as f:
+                    params = json.load(f)
+            else:
+                print('Error: File not exist! ' + cur_work_dir + '/hyperparameters.json')
+                exit(-1)
+            if folder == '70558_sf_f1000_ns3_nm10':
+                net_path = os.path.join(cur_work_dir, 'netparams_b1_t9_v9_e3000.dat')
+            else:
+                net_path = os.path.join(cur_work_dir, 'netparams_b1_t10_v10_e3000.dat')
+
+            net = SubdNet(params)
+            net = net.to(params['device'])
+            net.load_state_dict(torch.load(net_path, map_location=torch.device(params["device"])))
+            net.eval()
+            for test_folder in cross_list:
+                print('\ttest folder: ', test_folder)
+                if test_folder == folder:
+                    continue
+                test_pkl = os.path.join(mesh_pkl_dir, test_folder + '.pkl')
+                T = pickle.load(open(test_pkl, "rb"))
+                T.computeParameters()
+                T.toDevice(params["device"])
+                out_test_dir = os.path.join(cur_work_dir, 'test_e3000', test_folder)
+                test_and_evaluate(out_test_dir, net, T, params['numSubd'])
+
+
+
+def self_test():
+    work_dir = '/work/Users/zhuzhiwei/neuralSubdiv-master/jobs/'
+    cross_list = ['76947_sf_f1000_ns3_nm10','70558_sf_f1000_ns3_nm10','203289_sf_f1000_ns3_nm10','1717684_sf_f1000_ns3_nm10']
+    mesh_pkl_dir = '/work/Users/zhuzhiwei/neuralSubdiv-master/data_PKL/'
+    job_list = ['b1_anchor', 'b1_hfNorm', 'b1_oddV_MfV', 'b1_rnn']
+    job_list = [ 'b1_rnn_ori']
+
+    for folder in cross_list[3:4]:
+        print('current job folder is: ', folder)
+        for job in job_list:
+            cur_work_dir = os.path.join(work_dir, folder, job)
+            if os.path.exists(os.path.join(cur_work_dir, 'hyperparameters.json')):
+                print('Loading hyperparameters from ' + os.path.join(cur_work_dir, 'hyperparameters.json'))
+                with open(os.path.join(cur_work_dir, 'hyperparameters.json'), 'r') as f:
+                    params = json.load(f)
+            else:
+                print('Error: File not exist! ' + cur_work_dir + '/hyperparameters.json')
+                exit(-1)
+            if folder == '70558_sf_f1000_ns3_nm10':
+                net_path = os.path.join(cur_work_dir, 'netparams_b1_t9_v9_e3000.dat')
+            else:
+                net_path = os.path.join(cur_work_dir, 'netparams_b1_t10_v10_e3000.dat')
+
+            net = SubdNet(params)
+            net = net.to(params['device'])
+            net.load_state_dict(torch.load(net_path, map_location=torch.device(params["device"])))
+            net.eval()
+            for test_folder in cross_list:
+                print('\ttest folder: ', test_folder)
+                if test_folder != folder:
+                    continue
+                test_pkl = os.path.join(mesh_pkl_dir, test_folder + '.pkl')
+                T = pickle.load(open(test_pkl, "rb"))
+                T.computeParameters()
+                T.toDevice(params["device"])
+                out_test_dir = os.path.join(cur_work_dir, 'test_e3000')
+                test_and_evaluate(out_test_dir, net, T, params['numSubd'])
+
 
 def test_models_midx():
 
@@ -49,6 +194,8 @@ def test_models_midx():
     net = net.to(params['device'])
     net.load_state_dict(torch.load(net_path, map_location=torch.device(params["device"])))
     net.eval()
+
+
 
     output_root_dir = os.path.join(work_dir, folder, 'test_10k_sf_train60_subdiv_fn1000_e2000')
     # 训练集 
@@ -391,7 +538,13 @@ def bat_test():
 
 if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = '5'
-    test_models_midx()
+    self_test()
+
+    # gt_points = torch.randn(10,3)
+    # pred_points = torch.randn(10,3)
+    # lossfunc = torch.nn.MSELoss()
+    # print(lossfunc(gt_points, pred_points))
+    # print(chamfer_distance(gt_points, pred_points))
 
     # mesh_root_dir = '/work/Users/zhuzhiwei/dataset/mesh/10k_sf_train60_subdiv_fn1000/'
     # # 将mesh_root_dir中的文件夹名字作为mesh_list

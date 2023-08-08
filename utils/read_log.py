@@ -7,6 +7,89 @@ import xlrd
 import math
 import re
 
+def extract_folders(directory):
+    folders = []
+    for item in os.listdir(directory):
+        item_path = os.path.join(directory, item)
+        if os.path.isdir(item_path):
+            folders.append(item)
+    return folders
+def read_metric_log():
+    def match(file):
+        import re
+        log = open(file, 'r').read()
+        average_line = re.findall(r'average.*', log)[0]
+        # average	1.9850645e-06	65.3476378	68.85427075555555, 用正则表达式从该语句匹配数字
+        # pattern = re.compile(r'\d+(?:\.\d+)?(?:[eE][-+]?\d+)?')
+        # numbers = pattern.findall(average_line)
+        numbers = average_line.split('\t')[1:]
+        return numbers
+
+    work_dir = '/work/Users/zhuzhiwei/neuralSubdiv-master/jobs/'
+    cross_list = ['76947_sf_f1000_ns3_nm10',  '203289_sf_f1000_ns3_nm10',
+                  '70558_sf_f1000_ns3_nm10', '1717684_sf_f1000_ns3_nm10']
+
+    job_list = ['b1_anchor', 'b1_hfNorm', 'b1_oddV_MfV', 'b1_rnn', 'b1_rnn_dout16','b1_rnn_dout48',
+                'b1_rnn_ori','b1_chamfer','b1_hfNorm_MfV_rnn']
+    for folder in cross_list:
+        print('current job folder is: ', folder)
+        total_result = os.path.join(work_dir, folder, 'test_e3000_result.txt')
+        f = open(total_result, 'w')
+        f.write(folder + '\n')
+        f.write('job_name\tmse\tp2point\tp2plane\n')
+        cur_folder = os.path.join(work_dir, folder)
+        # list the directory in cur_folder
+        # job_list = extract_folders(cur_folder)
+        for job in job_list:
+            cur_work_dir = os.path.join(work_dir, folder, job)
+            print('current job is: ', job)
+            test_dir = os.path.join(cur_work_dir, 'test_e3000')
+            f.write(job + '\t')
+            root_numbers = match(os.path.join(test_dir, 'metric.txt'))
+            for num in root_numbers:
+                f.write(num + '\t')
+            f.write('\n')
+        f.close()
+
+def bat_read_metric_log():
+    def match(file):
+        import re
+        log = open(file, 'r').read()
+        average_line = re.findall(r'average.*', log)[0]
+        # average	1.9850645e-06	65.3476378	68.85427075555555, 用正则表达式从该语句匹配数字
+        # pattern = re.compile(r'\d+(?:\.\d+)?(?:[eE][-+]?\d+)?')
+        # numbers = pattern.findall(average_line)
+        numbers = average_line.split('\t')[1:]
+        return numbers
+
+    work_dir = '/work/Users/zhuzhiwei/neuralSubdiv-master/jobs/'
+    cross_list = ['76947_sf_f1000_ns3_nm10', '70558_sf_f1000_ns3_nm10', '203289_sf_f1000_ns3_nm10',
+                  '1717684_sf_f1000_ns3_nm10']
+
+    job_list = ['b1_anchor', 'b1_hfNorm', 'b1_oddV_MfV', 'b1_rnn']
+    for folder in cross_list:
+        print('current job folder is: ', folder)
+        total_result = os.path.join(work_dir, folder, 'test_e3000_total_result.txt')
+        f = open(total_result, 'w')
+        f.write('mesh_name\tmse\tp2point\tp2plane\n')
+        for job in job_list:
+            cur_work_dir = os.path.join(work_dir, folder, job)
+            print('current job is: ', job)
+            test_dir = os.path.join(cur_work_dir, 'test_e3000')
+            f.write(job + '\n')
+            root_numbers = match(os.path.join(test_dir, 'metric.txt'))
+            numbers_direct = {folder: root_numbers}
+            for test_folder in cross_list:
+                if test_folder == folder:
+                    continue
+                test_numbers = match(os.path.join(test_dir, test_folder, 'metric.txt'))
+                numbers_direct[test_folder] = test_numbers
+            for key in cross_list:
+                f.write(key + '\t')
+                for num in numbers_direct[key]:
+                    f.write(num + '\t')
+                f.write('\n')
+        f.close()
 
 def read_vmesh_enc_log(enc_log_path):
     with open(enc_log_path, 'r') as file:
@@ -115,15 +198,16 @@ def bat_read_vmesh_log():
 
 if __name__=='__main__':
     # bat_read_vmesh_log()
-    job_list = ['ori_nv']
-    # job_list = ['hf_norm', 'hf_norm_12_pos+fea', 'hf_norm_12x34_pos+fea','odd','odd_hiddenLayer4', 'odd_hiddenLayer4_dout3']
-    work_dir = '/work/Users/zhuzhiwei/neuralSubdiv-master/jobs/animal6_f1000_ns3_nm50+5/'
-    import os
-    for job in job_list:
-        print(job)
-        os.makedirs(work_dir+'/log_bijiao/'+job, exist_ok=True)
-        job_log_path = work_dir+'/'+job+'/log/'
-        file = os.listdir(job_log_path)
-        for f in file:
-            cmd = 'cp '+job_log_path+f+' '+work_dir+'/log_bijiao/'+job+'/'+f
-            os.system(cmd)
+    read_metric_log()
+    # job_list = ['ori_nv']
+    # # job_list = ['hf_norm', 'hf_norm_12_pos+fea', 'hf_norm_12x34_pos+fea','odd','odd_hiddenLayer4', 'odd_hiddenLayer4_dout3']
+    # work_dir = '/work/Users/zhuzhiwei/neuralSubdiv-master/jobs/animal6_f1000_ns3_nm50+5/'
+    # import os
+    # for job in job_list:
+    #     print(job)
+    #     os.makedirs(work_dir+'/log_bijiao/'+job, exist_ok=True)
+    #     job_log_path = work_dir+'/'+job+'/log/'
+    #     file = os.listdir(job_log_path)
+    #     for f in file:
+    #         cmd = 'cp '+job_log_path+f+' '+work_dir+'/log_bijiao/'+job+'/'+f
+    #         os.system(cmd)

@@ -8,7 +8,7 @@ from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.tensorboard import SummaryWriter
 from include import *
 from models.models_b_din import *
-
+from zzw_test import test_and_evaluate
 
 def filter_mesh_before_train(S, T, net, params, lossFunc):
     """
@@ -336,70 +336,6 @@ def main(args):
     out_test_dir = os.path.join(params['output_path'], 'test_e%d' % total_epoch)
     test_and_evaluate(out_test_dir, net, T, params['numSubd'])
 
-
-def test_and_evaluate(out_test_dir, net, T, numSubd):
-    os.path.exists(out_test_dir) or os.makedirs(out_test_dir)
-
-    def call_mm_compare(refer, test, mode='pcc'):
-        import subprocess
-        mm = '/work/Users/zhuzhiwei/vmesh/externaltools/mpeg-pcc-mmetric/build/Release/bin/mm'
-        cmd = mm + ' compare --inputModelA ' + refer + ' --inputModelB ' + test + ' --mode ' + mode
-        print(cmd)
-        output = subprocess.check_output(cmd, shell=True, encoding='utf-8')
-        return match_mm_log(output)
-
-    def match_mm_log(log):
-        import re
-        # mseF, PSNR(p2point) Mean=64.8143145, 用正则表达式从该语句匹配数字
-        pattern_point = re.compile(r'PSNR\(p2point\) Mean=(\d+.\d+)')
-        p2point = pattern_point.findall(log)
-        print('p2point: ', p2point[0])
-        # mseF, PSNR(p2plane) Mean=64.8143145, 用正则表达式从该语句匹配数字
-        pattern_plane = re.compile(r'PSNR\(p2plane\) Mean=(\d+.\d+)')
-        p2plane = pattern_plane.findall(log)
-        print('p2plane: ', p2plane[0])
-        return p2point[0], p2plane[0]
-
-    metric_file_path = os.path.join(out_test_dir, 'metric.txt')
-    metric_file = open(metric_file_path, 'w')
-    metric_file.write('mIdx\tmse_loss\tp2point\tp2plane\n')
-    mse_loss_list = []
-    p2point_list = []
-    p2plane_list = []
-
-    os.path.exists(out_test_dir) or os.makedirs(out_test_dir)
-    max_num = min(10, T.nM)
-    for mIdx in range(0, max_num):
-        metric_file.write(str(mIdx) + '\t')
-        gt_path = os.path.join(out_test_dir, str(mIdx).zfill(len(str(T.nM))) + '_subd' + str(numSubd) + '_gt.obj')
-        pred_path = os.path.join(out_test_dir, str(mIdx).zfill(len(str(T.nM))) + '_subd' + str(numSubd) + '.obj')
-        x = T.getInputData(mIdx)
-        outputs = net(x, T.hfList[mIdx], T.poolMats[mIdx], T.dofs[mIdx])
-
-        # write unrotated outputs
-        gt_x = T.meshes[mIdx][len(outputs) - 1].V.to('cpu')
-        tgp.writeOBJ(gt_path, gt_x, T.meshes[mIdx][len(outputs) - 1].F.to('cpu'))
-        ii = len(outputs) - 1
-        pred_x = outputs[ii].cpu()
-        tgp.writeOBJ(pred_path, pred_x, T.meshes[mIdx][ii].F.to('cpu'))
-        mse_loss = np.mean(np.square(np.linalg.norm(gt_x.detach().numpy() - pred_x.detach().numpy(), axis=1)))
-        p2point, p2plane = call_mm_compare(gt_path, pred_path)
-
-        mse_loss_list.append(mse_loss)
-        p2point_list.append(float(p2point))
-        p2plane_list.append(float(p2plane))
-
-        metric_file.write(str(mse_loss) + '\t' + str(p2point) + '\t' + str(p2plane) + '\n')
-
-    average_mse_loss = np.mean(mse_loss_list)
-    average_p2point = np.mean(p2point_list)
-    average_p2plane = np.mean(p2plane_list)
-    print('average_mse_loss: ', average_mse_loss)
-    print('average_p2point: ', average_p2point)
-    print('average_p2plane: ', average_p2plane)
-    metric_file.write('average\t' + str(average_mse_loss) + '\t' + str(average_p2point) + '\t'
-                      + str(average_p2plane) + '\n')
-    metric_file.close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
